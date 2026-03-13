@@ -1,17 +1,18 @@
 /**
- * netlify/functions/haiku.js — Serverless proxy para la API de xAI (Grok)
+ * netlify/functions/haiku.js — Serverless proxy para la API de Groq
  *
  * Netlify Function que recibe el POST del browser, agrega la API key
- * (guardada como variable de entorno en Netlify), y reenvía a xAI.
+ * (guardada como variable de entorno en Netlify), y reenvía a Groq.
  *
  * La API key se configura en Netlify:
- *   Site settings → Environment variables → Add → XAI_API_KEY
+ *   Site settings → Environment variables → Add → GROQ_API_KEY
+ *
+ * Key gratuita en: https://console.groq.com/keys
  */
 
-const XAI_API_URL = "https://api.x.ai/v1/chat/completions";
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 export default async (request) => {
-  // CORS headers
   const headers = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -19,7 +20,6 @@ export default async (request) => {
     "Content-Type": "application/json"
   };
 
-  // Preflight
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers });
   }
@@ -28,10 +28,10 @@ export default async (request) => {
     return new Response(JSON.stringify({ error: "Solo POST" }), { status: 405, headers });
   }
 
-  const apiKey = Netlify.env.get("XAI_API_KEY");
+  const apiKey = Netlify.env.get("GROQ_API_KEY");
   if (!apiKey) {
     return new Response(
-      JSON.stringify({ error: "XAI_API_KEY no configurada" }),
+      JSON.stringify({ error: "GROQ_API_KEY no configurada" }),
       { status: 500, headers }
     );
   }
@@ -39,7 +39,7 @@ export default async (request) => {
   try {
     const body = await request.text();
 
-    const resp = await fetch(XAI_API_URL, {
+    const resp = await fetch(GROQ_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

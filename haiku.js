@@ -2,7 +2,7 @@
  * haiku.js — Compositor de haiku a partir de titulares
  *
  * Dos motores disponibles:
- * 1. IA (Grok/xAI): Envía el titular a la API y recibe un haiku creativo
+ * 1. IA (Groq/Llama): Envía el titular a la API y recibe un haiku creativo
  * 2. Algorítmico (fallback): Recompone palabras del titular por conteo silábico
  *
  * El motor de IA se intenta primero; si falla, se usa el algorítmico.
@@ -11,8 +11,8 @@
 
 const Haiku = (function () {
 
-  // ── Configuración de la API de Grok (xAI) ──
-  const GROK_MODEL = "grok-3-mini-fast";
+  // ── Configuración de la API (Groq — Llama 3.3 70B) ──
+  const LLM_MODEL = "llama-3.3-70b-versatile";
 
   // URLs de proxy en orden de prioridad:
   // 1. Netlify Function (producción — detecta automáticamente el dominio)
@@ -36,24 +36,25 @@ MÉTRICA ESTRICTA:
 - Exactamente 3 versos: 5 sílabas / 7 sílabas / 5 sílabas (conteo silábico español).
 - Cuenta con cuidado los diptongos (cie-lo = 2 sílabas) y los hiatos (rí-o = 2 sílabas).
 
-RESTRICCIÓN CLAVE:
-- Debes reutilizar al menos 2 palabras del titular original, transformando su carga negativa en otra cosa.
+RESTRICCIONES:
+- Intenta reutilizar palabras o fragmentos del titular cuando sea posible, transformando su carga negativa en otra cosa. Pero la calidad poética es más importante que la reutilización.
+- Usa SOLO palabras que existan en el diccionario de la RAE. No inventes palabras. No uses neologismos. Cada palabra debe ser una palabra real del español.
 
 FORMATO:
 - Responde SOLO con los 3 versos, uno por línea.
 - Sin puntuación al final de los versos. Sin comillas. Sin título. Sin explicación.
 - Todo en minúsculas.`;
 
-  // ── Motor de IA (Grok) ──
+  // ── Motor de IA (Groq) ──
 
   /**
-   * hacerFetch — intenta conectar a Grok probando los proxies en orden:
-   * primero el Cloudflare Worker (producción), luego el proxy local (dev).
+   * hacerFetch — intenta conectar al LLM probando los proxies en orden:
+   * primero Netlify Function (producción), luego proxy local (dev).
    * Ninguno requiere Authorization en el header porque ambos lo agregan.
    * Timeout de 15 segundos por intento.
    *
    * @param {string} titular - el titular apocalíptico
-   * @returns {Promise<Object|null>} respuesta JSON de Grok o null si falla
+   * @returns {Promise<Object|null>} respuesta JSON del LLM o null si falla
    */
   async function hacerFetch(titular) {
     const payload = JSON.stringify({
@@ -61,7 +62,7 @@ FORMATO:
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: titular }
       ],
-      model: GROK_MODEL,
+      model: LLM_MODEL,
       stream: false,
       temperature: 0.9
     });
@@ -80,7 +81,7 @@ FORMATO:
         clearTimeout(timeout);
 
         if (resp.ok) {
-          console.log("Grok conectó via proxy #" + i + ": " + PROXY_URLS[i]);
+          console.log("LLM conectó via proxy #" + i + ": " + PROXY_URLS[i]);
           return await resp.json();
         }
         console.log("Proxy #" + i + " respondió " + resp.status);
@@ -92,29 +93,63 @@ FORMATO:
     return null;
   }
 
-  async function componerConGrok(titular) {
+  /**
+   * validarHaiku — validación estructural ligera.
+   * Solo rechaza respuestas claramente mal formadas:
+   * - Líneas vacías o con un solo carácter
+   * - Palabras con caracteres no-españoles (números, símbolos raros)
+   * - Respuestas que parecen explicaciones en vez de poesía
+   */
+  function validarHaiku(versos) {
+    for (let verso of versos) {
+      // Rechazar líneas muy cortas o vacías
+      if (verso.trim().length < 2) {
+        console.log("Verso demasiado corto:", verso);
+        return false;
+      }
+      // Rechazar si contiene números o caracteres no poéticos
+      if (/[0-9@#$%^&*=+{}[\]|\\<>]/.test(verso)) {
+        console.log("Verso con caracteres no poéticos:", verso);
+        return false;
+      }
+      // Rechazar si parece una explicación (frases tipo "aquí va..." o "el haiku es...")
+      if (/^(aquí|este|nota|verso|haiku|línea|sílaba)/i.test(verso.trim())) {
+        console.log("Verso parece explicación, no poesía:", verso);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async function componerConLLM(titular) {
     try {
       const data = await hacerFetch(titular);
       if (!data) return null;
 
       const texto = data.choices[0].message.content.trim();
-      const lineas = texto.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+      // Limpiar posible markdown (**negrita**, etc.)
+      const textoLimpio = texto.replace(/\*\*/g, "").replace(/\*/g, "");
+      const lineas = textoLimpio.split("\n").map(l => l.trim()).filter(l => l.length > 0);
 
       if (lineas.length >= 3) {
-        console.log("Haiku de Grok:", lineas[0], "/", lineas[1], "/", lineas[2]);
-        return {
-          versos: [lineas[0], lineas[1], lineas[2]],
-          metrica: lineas.slice(0, 3).map(v => Silabas.contarSilabasFrase(v)),
-          titular: titular,
-          motor: "grok"
-        };
+        let versos = [lineas[0], lineas[1], lineas[2]];
+        console.log("Haiku de LLM:", versos.join(" / "));
+
+        if (validarHaiku(versos)) {
+          return {
+            versos: versos,
+            metrica: versos.map(v => Silabas.contarSilabasFrase(v)),
+            titular: titular,
+            motor: "groq"
+          };
+        }
       }
 
-      console.log("Grok formato inesperado:", texto);
+      console.log("LLM formato inesperado:", texto);
       return null;
 
     } catch (e) {
-      console.log("componerConGrok error:", e.message);
+      console.log("componerConLLM error:", e.message);
       return null;
     }
   }
@@ -329,13 +364,11 @@ FORMATO:
    * @returns {Promise<Object>} {versos: [s,s,s], metrica: [n,n,n], titular, motor}
    */
   async function componerHaiku(titular) {
-    // Intentar con Grok primero
-    if (GROK_API_KEY) {
-      let resultado = await componerConGrok(titular);
-      if (resultado) {
-        console.log("Haiku generado con Grok:", resultado.versos);
-        return resultado;
-      }
+    // Intentar con LLM primero (Groq/Llama)
+    let resultado = await componerConLLM(titular);
+    if (resultado) {
+      console.log("Haiku generado con LLM:", resultado.versos);
+      return resultado;
     }
 
     // Fallback algorítmico

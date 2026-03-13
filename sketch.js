@@ -22,19 +22,21 @@ const Engine = Matter.Engine,
   Constraint = Matter.Constraint;
 
 // ── Configuración ──
-const CANVAS_H = 680;
-const FONT_SIZE = 80;        // tamaño base del titular (y del haiku)
-const FECHA_SIZE = 22;
-const MARGEN = 40;            // margen izquierdo / derecho
-const SANGRIA_HAIKU = 150;    // sangría izquierda del haiku
+const CANVAS_H = 480;
+const FONT_SIZE = 48;        // tamaño base del titular (y del haiku)
+const FECHA_SIZE = 18;
+const MARGEN = 20;            // margen izquierdo / derecho
+const SANGRIA_HAIKU = 40;    // sangría izquierda del haiku
 const GRAVITY = 0.8;
 
 // Tiempos de cada estado en ms (ajustar a gusto)
 const TIEMPOS = {
-  TITULAR: 3000,       // tiempo que se muestra el titular estático
-  CAYENDO: 4000,       // ventana en que las letras van pivotando y cayendo
-  VIAJANDO: 3000,      // duración del viaje easing de las letras rojas
-  HAIKU: 8000          // tiempo que se muestra el haiku antes de reiniciar
+  FADEIN: 4000,        // duración del fade-in del titular
+  TITULAR: 6300,       // tiempo para leer el titular
+  CAYENDO: 5500,       // ventana en que las letras van pivotando y cayendo
+  VIAJANDO: 6000,      // duración del viaje easing de las letras rojas
+  HAIKU: 12000,        // tiempo para contemplar el haiku
+  FADEOUT: 4000        // duración del fade-out del haiku antes de reiniciar
 };
 
 const COLORS = {
@@ -46,7 +48,7 @@ const COLORS = {
 };
 
 // ── Estados ──
-const ESTADO = { CARGANDO: 0, TITULAR: 1, CAYENDO: 2, VIAJANDO: 3, HAIKU: 4 };
+const ESTADO = { CARGANDO: 0, FADEIN: 1, TITULAR: 2, CAYENDO: 3, VIAJANDO: 4, HAIKU: 5, FADEOUT: 6 };
 
 // ── Variables globales ──
 let engine, world;
@@ -110,6 +112,25 @@ function crearLimites() {
   World.add(world, [suelo, paredIzq, paredDer]);
 }
 
+// ── Tipografía ──
+
+/**
+ * smartQuotes — reemplaza comillas rectas por comillas tipográficas.
+ * Heurística: comilla después de espacio o inicio de cadena es de apertura.
+ * También convierte apóstrofos rectos en curvos.
+ */
+function smartQuotes(texto) {
+  // Dobles: " → " o "
+  texto = texto.replace(/"([^"]*?)"/g, "\u201C$1\u201D");         // pares explícitos
+  texto = texto.replace(/(^|[\s(])"/g, "$1\u201C");                // apertura suelta
+  texto = texto.replace(/"/g, "\u201D");                           // cierre restante
+  // Simples: ' → ' o '
+  texto = texto.replace(/'([^']*?)'/g, "\u2018$1\u2019");         // pares explícitos
+  texto = texto.replace(/(^|[\s(])'/g, "$1\u2018");                // apertura suelta
+  texto = texto.replace(/'/g, "\u2019");                           // cierre / apóstrofo
+  return texto;
+}
+
 // ── Ciclo principal ──
 
 /**
@@ -133,14 +154,20 @@ async function iniciarCiclo() {
     titularActual = Noticias.obtenerTitularAleatorio();
   }
 
+  // Tipografía: comillas rectas → comillas tipográficas
+  titularActual = smartQuotes(titularActual);
+
   // Generar haiku
   haikuActual = await Haiku.componerHaiku(titularActual);
+  if (haikuActual) {
+    haikuActual.versos = haikuActual.versos.map(smartQuotes);
+  }
 
   // Crear letras y marcar las del haiku
   crearLetras(titularActual);
   marcarLetrasHaiku();
 
-  estadoActual = ESTADO.TITULAR;
+  estadoActual = ESTADO.FADEIN;
   tiempoEstado = millis();
 }
 
@@ -233,6 +260,10 @@ function crearLetras(texto) {
  * marcarLetrasHaiku — determina qué letras del titular serán usadas
  * en el haiku. Empareja letra por letra (case-insensitive).
  * Las marcadas como esHaiku=true no caerán y se teñirán de rojo.
+ *
+ * Para las letras del haiku que NO existen en el titular, se crean
+ * letras "fantasma" (esFantasma=true) que aparecerán con fade-in
+ * durante el estado VIAJANDO, directamente en su posición destino.
  */
 function marcarLetrasHaiku() {
   if (!haikuActual) return;
@@ -249,7 +280,6 @@ function marcarLetrasHaiku() {
   }
 
   // Recorrer las letras del titular e intentar emparejar
-  // (solo letras, no espacios)
   for (let n of necesarias) {
     for (let l of letras) {
       if (l.esHaiku) continue;
@@ -262,6 +292,44 @@ function marcarLetrasHaiku() {
         break;
       }
     }
+  }
+
+  // Crear letras fantasma para las que no encontraron par en el titular
+  for (let n of necesarias) {
+    if (n.asignada) continue;
+
+    textSize(FONT_SIZE);
+    let w = textWidth(n.letra);
+
+    letras.push({
+      letra: n.letra,
+      x: 0,  // posición temporal, se asigna en calcularDestinosHaiku
+      y: 0,
+      w: w,
+      h: FONT_SIZE,
+      tamano: FONT_SIZE,
+      esHaiku: true,
+      esFantasma: true,  // flag: esta letra no viene del titular
+      haikuVerse: n.verso,
+      haikuPos: n.posEnVerso,
+      body: null,
+      pivotConstraint: null,
+      pivotDelay: 0,
+      unpinDelay: 0,
+      pivotIniciado: false,
+      soltada: false,
+      objetivo: null,
+      viajeT: 0,
+      origenViaje: null,
+      opacidad: 0,  // empieza invisible
+      colorT: 1     // ya roja desde el inicio (no necesita transición negro→rojo)
+    });
+  }
+
+  let fantasmas = letras.filter(l => l.esFantasma);
+  if (fantasmas.length > 0) {
+    console.log("Letras fantasma creadas:", fantasmas.length,
+      "(" + fantasmas.map(l => l.letra).join("") + ")");
   }
 }
 
@@ -384,12 +452,19 @@ function calcularDestinosHaiku() {
         // Espacio: avanzar por el ancho de un espacio
         x += textWidth(" ");
       } else {
-        // Letra: asignar destino usando el ancho real del glyph del titular
+        // Letra: asignar destino usando el ancho real del glyph
         if (idx < letrasDelVerso.length) {
           let l = letrasDelVerso[idx];
           l.objetivo = { x: x, y: y };
-          l.origenViaje = { x: l.x, y: l.y };
-          x += textWidth(l.letra); // ancho REAL (mayúscula o minúscula)
+          if (l.esFantasma) {
+            // Fantasma: aparece directo en destino (sin viaje)
+            l.x = x;
+            l.y = y;
+            l.origenViaje = { x: x, y: y };
+          } else {
+            l.origenViaje = { x: l.x, y: l.y };
+          }
+          x += textWidth(l.letra);
           idx++;
         }
       }
@@ -421,6 +496,19 @@ function draw() {
   switch (estadoActual) {
     case ESTADO.CARGANDO:
       dibujarCargando();
+      break;
+
+    case ESTADO.FADEIN:
+      // Titular aparece gradualmente
+      {
+        let alfa = constrain(t / TIEMPOS.FADEIN, 0, 1) * 255;
+        dibujarLetrasEstaticas(COLORS.texto, alfa);
+        dibujarFecha(null, alfa);
+      }
+      if (t > TIEMPOS.FADEIN) {
+        estadoActual = ESTADO.TITULAR;
+        tiempoEstado = millis();
+      }
       break;
 
     case ESTADO.TITULAR:
@@ -457,8 +545,23 @@ function draw() {
       break;
 
     case ESTADO.HAIKU:
-      // Las mismas letras rojas quedan en su posición final (sin reemplazo)
+      // Las mismas letras rojas quedan en su posición final
       dibujarLetrasCayendo();
+      if (t > TIEMPOS.HAIKU) {
+        estadoActual = ESTADO.FADEOUT;
+        tiempoEstado = millis();
+      }
+      break;
+
+    case ESTADO.FADEOUT:
+      // El haiku se desvanece antes de reiniciar
+      {
+        let alfa = (1 - constrain(t / TIEMPOS.FADEOUT, 0, 1)) * 255;
+        dibujarLetrasCayendo(alfa);
+      }
+      if (t > TIEMPOS.FADEOUT) {
+        iniciarCiclo();
+      }
       break;
   }
 }
@@ -478,24 +581,29 @@ function dibujarCargando() {
 
 /**
  * dibujarLetrasEstaticas — dibuja todas las letras en su posición original
- * (estado TITULAR). Color uniforme.
+ * (estado TITULAR y FADEIN). Color uniforme.
+ * El parámetro alfa (0-255) controla la opacidad para el fade-in.
  */
-function dibujarLetrasEstaticas(color) {
-  fill(color);
+function dibujarLetrasEstaticas(col, alfa) {
+  let c = color(col);
+  if (alfa !== undefined) c.setAlpha(alfa);
+  fill(c);
   noStroke();
   textAlign(LEFT, BASELINE);
   for (let l of letras) {
+    if (l.esFantasma) continue;  // las fantasma no aparecen en el titular
     textSize(l.tamano);
     text(l.letra, l.x, l.y);
   }
 }
 
 /**
- * dibujarLetrasCayendo — durante CAYENDO y VIAJANDO:
+ * dibujarLetrasCayendo — durante CAYENDO, VIAJANDO, HAIKU y FADEOUT:
  * - Letras no-haiku: se dibujan desde su cuerpo Matter.js (o desvanecen)
  * - Letras haiku: se dibujan en rojo, en su posición estática o de viaje
+ * El parámetro alfaGlobal (0-255) controla la opacidad general (para FADEOUT).
  */
-function dibujarLetrasCayendo() {
+function dibujarLetrasCayendo(alfaGlobal) {
   noStroke();
   for (let l of letras) {
     if (l.letra === " ") continue;
@@ -505,6 +613,17 @@ function dibujarLetrasCayendo() {
       if (l.colorT === undefined) l.colorT = 0;
       l.colorT = min(l.colorT + 1 / 100, 1);
       let c = lerpColor(color(COLORS.texto), color(COLORS.haikuLetra), l.colorT);
+
+      // Fantasma: fade-in progresivo durante VIAJANDO
+      if (l.esFantasma) {
+        let fantasmaAlfa = l.opacidad;
+        if (alfaGlobal !== undefined) fantasmaAlfa = min(fantasmaAlfa, alfaGlobal);
+        if (fantasmaAlfa <= 0) continue;
+        c.setAlpha(fantasmaAlfa);
+      } else if (alfaGlobal !== undefined) {
+        c.setAlpha(alfaGlobal);
+      }
+
       fill(c);
       textSize(l.tamano);
       textAlign(LEFT, BASELINE);
@@ -514,13 +633,11 @@ function dibujarLetrasCayendo() {
       let pos = l.body.position;
       let ang = l.body.angle;
 
-      // Desvanecer si cayeron muy abajo
-      if (pos.y > CANVAS_H - 50) {
-        l.opacidad = max(0, l.opacidad - 5);
-      }
-      if (l.opacidad <= 0) continue;
+      // Opacidad controlada solo por el fade-out global
+      let a = alfaGlobal !== undefined ? alfaGlobal : 255;
+      if (a <= 0) continue;
 
-      fill(0, 0, 0, l.opacidad);
+      fill(0, 0, 0, a);
       push();
       translate(pos.x, pos.y);
       rotate(ang);
@@ -535,6 +652,7 @@ function dibujarLetrasCayendo() {
 /**
  * animarViaje — mueve las letras del haiku desde su posición original
  * hasta su destino en el haiku, con easing cúbico.
+ * Las letras fantasma hacen fade-in en su posición destino.
  */
 function animarViaje(t) {
   let progreso = constrain(t / TIEMPOS.VIAJANDO, 0, 1);
@@ -542,18 +660,24 @@ function animarViaje(t) {
 
   for (let l of letras) {
     if (!l.esHaiku || !l.objetivo || !l.origenViaje) continue;
-    l.x = lerp(l.origenViaje.x, l.objetivo.x, eased);
-    l.y = lerp(l.origenViaje.y, l.objetivo.y, eased);
+
+    if (l.esFantasma) {
+      // Fade-in: opacidad sube de 0 a 255 durante el viaje
+      l.opacidad = eased * 255;
+    } else {
+      l.x = lerp(l.origenViaje.x, l.objetivo.x, eased);
+      l.y = lerp(l.origenViaje.y, l.objetivo.y, eased);
+    }
   }
 }
 
 /**
  * dibujarFecha — fecha en gris, alineada left, debajo del titular.
- * Recibe opcionalmente el tiempo transcurrido en el estado actual;
- * durante VIAJANDO el parámetro t controla un fade-out progresivo.
+ * Primer parámetro t: durante VIAJANDO controla fade-out progresivo.
+ * Segundo parámetro alfaExplicito: opacidad directa (para FADEIN).
  */
-function dibujarFecha(t) {
-  let alfa = 255;
+function dibujarFecha(t, alfaExplicito) {
+  let alfa = alfaExplicito !== undefined ? alfaExplicito : 255;
   // Durante VIAJANDO, la fecha se desvanece proporcionalmente al progreso
   if (estadoActual === ESTADO.VIAJANDO && t !== undefined) {
     let progreso = constrain(t / TIEMPOS.VIAJANDO, 0, 1);
