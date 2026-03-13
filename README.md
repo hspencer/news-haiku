@@ -93,16 +93,46 @@ El repo incluye una Netlify Function en `netlify/functions/haiku.js` que actúa 
 2. En Site settings, Environment variables, agregar `GROQ_API_KEY` con la key de Groq
 3. Push a main triggerea el deploy
 
+## Cache de haikus
+
+Para no sobreexigir la API de Groq, el sistema incluye un cache server-side.
+
+Una funcion scheduled (`refresh.mjs`) se ejecuta cada 6 horas, busca titulares apocalipticos via RSS, genera haikus para los 12 mejores, y los almacena en Netlify Blobs. El cliente pide el cache una vez al cargar (`cache.mjs`) y rota entre los items pre-generados sin tocar la API.
+
+El archivo `cache.json` commiteado en el repo sirve como fallback estático para el primer deploy (antes de que el cron haya corrido). Una vez que `refresh.mjs` corre por primera vez, los Blobs toman prioridad con noticias frescas.
+
+```mermaid
+graph LR
+    subgraph Netlify
+        R["refresh.mjs<br/>(cron cada 6h)"] -->|fetch RSS| RSS[rss2json.com]
+        R -->|genera haiku| G[Groq API]
+        R -->|guarda 12 items| B[(Netlify Blobs)]
+        C["cache.mjs<br/>(GET endpoint)"] -->|lee| B
+    end
+    subgraph Cliente
+        S[sketch.js] -->|1x al cargar| C
+        S -->|rota entre items| S
+    end
+```
+
+Si el cache esta vacio (primera vez, o en desarrollo local), el sketch cae al flujo original: RSS + Groq en tiempo real.
+
+Para forzar un refresco manual del cache, hacer POST a `/.netlify/functions/refresh`.
+
 ## Estructura
 
 ```
-index.html          Entrada, carga fuentes y scripts
-sketch.js           Animacion p5.js + Matter.js (estado, dibujo, fisica)
-haiku.js            Generador de haiku (Groq/Llama + fallback algoritmico)
-silabas.js          Conteo silabico español (diptongos, hiatos)
-noticias.js         Fetch de titulares via RSS
-js/p5.min.js        p5.js
-js/matter.js        Matter.js 0.12.0
-netlify/functions/  Serverless proxy para Groq
-netlify.toml        Configuracion de Netlify
+index.html                      Entrada, carga fuentes y scripts
+sketch.js                       Animacion p5.js + Matter.js (estado, dibujo, fisica)
+haiku.js                        Generador de haiku (Groq/Llama + fallback algoritmico)
+silabas.js                      Conteo silabico español (diptongos, hiatos)
+noticias.js                     Fetch de titulares via RSS
+js/p5.min.js                    p5.js
+js/matter.js                    Matter.js 0.12.0
+netlify/functions/haiku.js      Proxy para Groq (fallback en tiempo real)
+netlify/functions/refresh.mjs   Scheduled: genera cache cada 6h
+netlify/functions/cache.mjs     Sirve el cache al cliente
+cache.json                      Fallback estatico (commiteado)
+netlify.toml                    Configuracion de Netlify
+package.json                    Dependencia @netlify/blobs
 ```

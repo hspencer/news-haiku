@@ -15,6 +15,9 @@
  */
 
 // ── Alias Matter.js ──
+// Acortamos los nombres de las clases de Matter.js para escribir menos.
+// En lugar de Matter.Engine.create() escribimos Engine.create().
+// Esto hace el código más legible y rápido de escribir.
 const Engine = Matter.Engine,
   World = Matter.World,
   Bodies = Matter.Bodies,
@@ -22,32 +25,40 @@ const Engine = Matter.Engine,
   Constraint = Matter.Constraint;
 
 // ── Configuración ──
-const CANVAS_H = 480;
-const FONT_SIZE = 48;        // tamaño base del titular (y del haiku)
-const FECHA_SIZE = 18;
-const MARGEN = 10;            // margen izquierdo / derecho
-const SANGRIA_HAIKU = 230;    // sangría izquierda del haiku
-const GRAVITY = 0.8;
+// Estos valores controlan la apariencia visual del canvas y del texto.
+// El usuario los ve inmediatamente al reproducirse la animación.
+const CANVAS_H = 480;                // altura fija del canvas (ancho es responsive)
+const FONT_SIZE = 48;                // tamaño base del titular y del haiku
+const FECHA_SIZE = 18;               // tamaño de la fecha debajo del titular
+const MARGEN = 10;                   // espacio desde los bordes izquierdo y derecho
+const SANGRIA_HAIKU = 10;           // indentación izquierda del haiku (centrado visual)
+const GRAVITY = 0.8;                 // aceleración de gravedad Matter.js para las letras que caen
 
-// Tiempos de cada estado en ms (ajustar a gusto)
+// Tiempos de cada estado en ms. Estos valores controlan cuánto ve el espectador
+// cada fase de la animación. Ajustarlos cambia el ritmo narrativo completo.
 const TIEMPOS = {
-  FADEIN: 4000,        // duración del fade-in del titular
-  TITULAR: 6300,       // tiempo para leer el titular
-  CAYENDO: 5500,       // ventana en que las letras van pivotando y cayendo
-  VIAJANDO: 6000,      // duración del viaje easing de las letras rojas
-  HAIKU: 12000,        // tiempo para contemplar el haiku
-  FADEOUT: 5500        // duración del fade-out del haiku antes de reiniciar
+  FADEIN: 4000,        // el titular aparece gradualmente (fade-in suave)
+  TITULAR: 6300,       // el titular es visible y legible (tiempo para leer)
+  CAYENDO: 5500,       // las letras pivotan y caen (ventana de física)
+  VIAJANDO: 6000,      // las letras rojas viajan suavemente a su posición en el haiku
+  HAIKU: 12000,        // el haiku completo es visible (tiempo para contemplar)
+  FADEOUT: 5500        // el haiku se desvanece (transición a ciclo siguiente)
 };
 
+// Paleta de colores. Define la transformación visual: el texto comienza negro
+// y las letras del haiku transicionan a rojo (símbolo poético).
 const COLORS = {
-  bg: "#FFFFFF",
-  texto: "#000000",
-  fecha: "#7e7d7d",
-  haikuLetra: "#a83217",  // rojo para las letras que se quedan
-  haiku: "#a83217"
+  bg: "#FFFFFF",           // fondo blanco
+  texto: "#000000",        // texto del titular (negro)
+  fecha: "#7e7d7d",        // fecha debajo (gris)
+  haikuLetra: "#a83217",   // rojo para las letras que quedan en el haiku
+  haiku: "#a83217"         // rojo del haiku (mismo que haikuLetra)
 };
 
 // ── Estados ──
+// Máquina de estados que define el flujo narrativo de la animación.
+// La variable estadoActual cambia secuencialmente: cada estado dibuja diferente
+// y tiene su propia duración en TIEMPOS. Es como un guión ejecutable.
 const ESTADO = { CARGANDO: 0, FADEIN: 1, TITULAR: 2, CAYENDO: 3, VIAJANDO: 4, HAIKU: 5, FADEOUT: 6 };
 
 // ── Variables globales ──
@@ -58,6 +69,17 @@ let tiempoEstado = 0;
 let titularActual = "";
 let haikuActual = null;
 let fechaHoy = "";
+
+/**
+ * cacheItems — array de {titular, versos} precargados desde el backend.
+ * Se obtiene una vez al inicio desde /.netlify/functions/cache
+ * y el sketch rota entre ellos sin llamar a la API en cada ciclo.
+ * Si el caché está vacío (dev local, primera vez), se usa el flujo
+ * original: Noticias + Haiku en tiempo real.
+ */
+let cacheItems = [];
+let cacheIndex = 0;
+let cacheDisponible = false;
 
 /**
  * letras[] — array principal. Cada elemento describe una letra del titular.
@@ -79,6 +101,9 @@ let fechaHoy = "";
 let letras = [];
 
 // ── Setup ──
+// setup() se ejecuta UNA SOLA VEZ al cargar la página.
+// Aquí inicializamos el canvas, el motor de física y cargamos el caché.
+// Después, draw() se ejecuta 60 veces por segundo (60 FPS).
 
 function setup() {
   let cnv = createCanvas(windowWidth, CANVAS_H);
@@ -95,7 +120,57 @@ function setup() {
   world.gravity.y = GRAVITY;
 
   crearLimites();
-  iniciarCiclo();
+  cargarCache().then(() => iniciarCiclo());
+}
+
+/**
+ * cargarCache — intenta obtener el caché de haikus con fallback encadenado.
+ * Prueba 3 URLs en orden (cadena de fallback):
+ *   1. /.netlify/functions/cache    (Netlify Function, producción, refrescado cada 6h)
+ *   2. /cache.json                  (archivo estático en el repositorio)
+ *   3. http://localhost:3001/cache  (servidor proxy local, desarrollo)
+ * 
+ * Si alguna funciona, cacheItems se llena y los ciclos rotan entre esos items
+ * precompilados. Si todas fallan, el sketch usa el flujo en tiempo real
+ * (busca titular vía RSS + genera haiku con Groq/fallback).
+ * 
+ * Al final, baraja (Fisher-Yates) los items para que cada sesión tenga orden distinto.
+ */
+async function cargarCache() {
+  const CACHE_URLS = [
+    "/.netlify/functions/cache",    // producción: Netlify Blobs (se refresca cada 12h)
+    "/cache.json",                  // fallback: archivo estático commiteado en el repo
+    "http://localhost:3001/cache"   // desarrollo local: proxy-server.js
+  ];
+
+  for (let i = 0; i < CACHE_URLS.length; i++) {
+    try {
+      const resp = await fetch(CACHE_URLS[i], {
+        signal: AbortSignal.timeout(3000)
+      });
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const data = await resp.json();
+
+      if (data.items && data.items.length > 0) {
+        // Barajar (Fisher-Yates) para variedad en cada visita
+        cacheItems = data.items;
+        for (let j = cacheItems.length - 1; j > 0; j--) {
+          let k = Math.floor(Math.random() * (j + 1));
+          [cacheItems[j], cacheItems[k]] = [cacheItems[k], cacheItems[j]];
+        }
+        cacheIndex = 0;
+        cacheDisponible = true;
+        console.log("Caché cargado desde", CACHE_URLS[i] + ":",
+          cacheItems.length, "items",
+          "(refrescado:", data.refreshedAtISO || "?", ")");
+        return; // éxito, no probar la siguiente URL
+      }
+    } catch (e) {
+      // silencio, probar la siguiente
+    }
+  }
+
+  console.log("Sin caché disponible — usando flujo en tiempo real");
 }
 
 // ── Límites físicos ──
@@ -106,7 +181,7 @@ function setup() {
  */
 function crearLimites() {
   let opts = { isStatic: true, restitution: 0.3, friction: 0.5 };
-  suelo = Bodies.rectangle(windowWidth / 2, CANVAS_H + 30, windowWidth + 200, 60, opts);
+  suelo = Bodies.rectangle(windowWidth / 2, CANVAS_H - 20, windowWidth + 200, 60, opts);
   paredIzq = Bodies.rectangle(-30, CANVAS_H / 2, 60, CANVAS_H * 2, opts);
   paredDer = Bodies.rectangle(windowWidth + 30, CANVAS_H / 2, 60, CANVAS_H * 2, opts);
   World.add(world, [suelo, paredIzq, paredDer]);
@@ -134,8 +209,11 @@ function smartQuotes(texto) {
 // ── Ciclo principal ──
 
 /**
- * iniciarCiclo — obtiene titular, genera haiku, crea letras, marca cuáles
+ * iniciarCiclo — obtiene titular y haiku, crea letras, marca cuáles
  * son del haiku, y arranca la secuencia visual.
+ *
+ * Flujo con caché (producción): toma el siguiente item del caché (round-robin).
+ * Flujo sin caché (desarrollo): busca titular vía RSS y genera haiku con Groq/fallback.
  */
 async function iniciarCiclo() {
   world.gravity.y = GRAVITY;
@@ -144,23 +222,39 @@ async function iniciarCiclo() {
   limpiarLetras();
   haikuActual = null;
 
-  // Obtener titular
-  try {
-    titularActual = await Noticias.obtenerPeorTitular();
-  } catch (e) {
-    titularActual = Noticias.obtenerTitularAleatorio();
-  }
-  if (!titularActual || titularActual.trim().length === 0) {
-    titularActual = Noticias.obtenerTitularAleatorio();
-  }
+  if (cacheDisponible && cacheItems.length > 0) {
+    // ── Flujo con caché: rotar entre items pre-generados ──
+    let item = cacheItems[cacheIndex];
+    cacheIndex = (cacheIndex + 1) % cacheItems.length;
 
-  // Tipografía: comillas rectas → comillas tipográficas
-  titularActual = smartQuotes(titularActual);
+    titularActual = smartQuotes(item.titular);
+    haikuActual = {
+      versos: item.versos.map(smartQuotes),
+      metrica: item.versos.map(v => Silabas.contarSilabasFrase(v)),
+      titular: item.titular,
+      motor: "cache"
+    };
 
-  // Generar haiku
-  haikuActual = await Haiku.componerHaiku(titularActual);
-  if (haikuActual) {
-    haikuActual.versos = haikuActual.versos.map(smartQuotes);
+    console.log("Desde caché [" + (cacheIndex) + "/" + cacheItems.length + "]:",
+      titularActual.substring(0, 50) + "...");
+
+  } else {
+    // ── Flujo en tiempo real (dev local o caché vacío) ──
+    try {
+      titularActual = await Noticias.obtenerPeorTitular();
+    } catch (e) {
+      titularActual = Noticias.obtenerTitularAleatorio();
+    }
+    if (!titularActual || titularActual.trim().length === 0) {
+      titularActual = Noticias.obtenerTitularAleatorio();
+    }
+
+    titularActual = smartQuotes(titularActual);
+
+    haikuActual = await Haiku.componerHaiku(titularActual);
+    if (haikuActual) {
+      haikuActual.versos = haikuActual.versos.map(smartQuotes);
+    }
   }
 
   // Crear letras y marcar las del haiku
@@ -185,20 +279,28 @@ function limpiarLetras() {
 // ── Creación de letras (layout multi-línea, left-aligned) ──
 
 /**
- * crearLetras — posiciona cada carácter del titular como texto
- * multi-línea con word-wrap, alineado a la izquierda.
- * No crea cuerpos de física todavía; eso ocurre al entrar en CAYENDO.
+ * crearLetras — posiciona cada carácter del titular como texto multi-línea
+ * con word-wrap automático (izquierda alineado). No crea cuerpos de física;
+ * eso ocurre cuando entramos en el estado CAYENDO.
+ * 
+ * Algoritmo:
+ * 1. Dividir el texto en palabras (split por espacios)
+ * 2. Para cada palabra, intentar agregarla a la línea actual
+ * 3. Si la línea supera el ancho disponible, guardar línea actual e iniciar una nueva
+ * 4. Medir posición de cada letra usando textWidth() (respeta kerning tipográfico)
+ * 5. Guardar x, y, w, h de cada letra para poder referenciarlo después
  */
 function crearLetras(texto) {
   let tam = FONT_SIZE;
   textSize(tam);
   let anchoDisponible = windowWidth - MARGEN * 2;
 
-  // Word wrap manual
+  // PASO 1: Word wrap manual — construir líneas respetando el ancho disponible
   let palabras = texto.split(/\s+/);
   let lineas = [];
   let lineaActual = "";
 
+  // PASO 2 y 3: Para cada palabra, intentar agregarla; si no cabe, guardar línea e iniciar nueva
   for (let p of palabras) {
     let prueba = lineaActual.length === 0 ? p : lineaActual + " " + p;
     if (textWidth(prueba) > anchoDisponible && lineaActual.length > 0) {
@@ -210,7 +312,8 @@ function crearLetras(texto) {
   }
   if (lineaActual.length > 0) lineas.push(lineaActual);
 
-  // Posicionar cada letra
+  // PASO 4 y 5: Posicionar cada letra individualmente en el array
+  // Calculamos baseline de cada línea y el ancho real de cada glyph
   let lineHeight = tam * 1.1;
   let startY = MARGEN + tam; // baseline de la primera línea
 
@@ -219,9 +322,10 @@ function crearLetras(texto) {
     let x = MARGEN;
     let y = startY + li * lineHeight;
 
+    // Recorrer carácter por carácter en la línea actual
     for (let ci = 0; ci < linea.length; ci++) {
       let ch = linea[ci];
-      let w = textWidth(ch);
+      let w = textWidth(ch);  // ancho real del glyph (respeta kerning)
 
       letras.push({
         letra: ch,
@@ -487,19 +591,22 @@ function easeInOutCubic(t) {
 
 // ── Draw loop ──
 
+// draw() se ejecuta 60 veces por segundo. El espectador ve todo lo que aquí dibujamos.
+// La máquina de estados controla qué se dibuja en cada momento.
 function draw() {
   background(COLORS.bg);
   Engine.update(engine, 1000 / 60);
 
-  let t = millis() - tiempoEstado;
+  let t = millis() - tiempoEstado;  // tiempo transcurrido en el estado actual
 
   switch (estadoActual) {
     case ESTADO.CARGANDO:
+      // El espectador ve: texto gris "buscando titulares..." mientras cargamos
       dibujarCargando();
       break;
 
     case ESTADO.FADEIN:
-      // Titular aparece gradualmente
+      // El espectador ve: el titular aparece de forma gradual (fade-in suave)
       {
         let alfa = constrain(t / TIEMPOS.FADEIN, 0, 1) * 255;
         dibujarLetrasEstaticas(COLORS.texto, alfa);
@@ -512,6 +619,7 @@ function draw() {
       break;
 
     case ESTADO.TITULAR:
+      // El espectador ve: el titular completo, legible, estático (tiempo para leer)
       dibujarLetrasEstaticas(COLORS.texto);
       dibujarFecha();
       if (t > TIEMPOS.TITULAR) {
@@ -522,10 +630,11 @@ function draw() {
       break;
 
     case ESTADO.CAYENDO:
+      // El espectador ve: las letras no-haiku pivotan y caen dramáticamente
+      // Las letras del haiku se tiñen de rojo y se quedan quietas
       actualizarCaida(t);
       dibujarLetrasCayendo();
       dibujarFecha();
-      // Cuando pasó el tiempo de caída, pasar a viaje
       if (t > TIEMPOS.CAYENDO) {
         calcularDestinosHaiku();
         estadoActual = ESTADO.VIAJANDO;
@@ -534,10 +643,11 @@ function draw() {
       break;
 
     case ESTADO.VIAJANDO:
-      // Seguir actualizando física para las que caen
+      // El espectador ve: las letras rojas viajan suavemente a su posición final en el haiku
+      // Las letras que caen continúan cayendo hasta el suelo (física)
       dibujarLetrasCayendo();
       animarViaje(t);
-      dibujarFecha(t);  // con fade-out progresivo
+      dibujarFecha(t);  // la fecha se desvanece en paralelo
       if (t > TIEMPOS.VIAJANDO) {
         estadoActual = ESTADO.HAIKU;
         tiempoEstado = millis();
@@ -545,7 +655,7 @@ function draw() {
       break;
 
     case ESTADO.HAIKU:
-      // Las mismas letras rojas quedan en su posición final
+      // El espectador ve: el haiku completo en rojo, estático, legible (momento poético)
       dibujarLetrasCayendo();
       if (t > TIEMPOS.HAIKU) {
         estadoActual = ESTADO.FADEOUT;
@@ -554,7 +664,7 @@ function draw() {
       break;
 
     case ESTADO.FADEOUT:
-      // El haiku se desvanece antes de reiniciar
+      // El espectador ve: el haiku se desvanece gradualmente (transición visual suave)
       {
         let alfa = (1 - constrain(t / TIEMPOS.FADEOUT, 0, 1)) * 255;
         dibujarLetrasCayendo(alfa);
@@ -598,10 +708,20 @@ function dibujarLetrasEstaticas(col, alfa) {
 }
 
 /**
- * dibujarLetrasCayendo — durante CAYENDO, VIAJANDO, HAIKU y FADEOUT:
- * - Letras no-haiku: se dibujan desde su cuerpo Matter.js (o desvanecen)
- * - Letras haiku: se dibujan en rojo, en su posición estática o de viaje
- * El parámetro alfaGlobal (0-255) controla la opacidad general (para FADEOUT).
+ * dibujarLetrasCayendo — dibuja durante CAYENDO, VIAJANDO, HAIKU y FADEOUT.
+ * Hay DOS RAMAS completamente diferentes según el tipo de letra:
+ * 
+ * RAMA 1 - Letras del haiku (esHaiku=true):
+ *   - Se dibujan en ROJO (transición de color negro → rojo en 100 frames)
+ *   - Posición fija (no física) o en viaje hacia el haiku
+ *   - Las "fantasma" hacen fade-in durante VIAJANDO
+ * 
+ * RAMA 2 - Letras que caen (esHaiku=false):
+ *   - Se dibujan DESDE SU CUERPO Matter.js (posición + rotación física)
+ *   - Caen por gravedad, rebotan, se desvanecen con fade-out global
+ *   - Se rotan según su ángulo de rotación en el mundo físico
+ * 
+ * El parámetro alfaGlobal (0-255) solo afecta a las letras que caen (para FADEOUT).
  */
 function dibujarLetrasCayendo(alfaGlobal) {
   noStroke();
@@ -629,12 +749,24 @@ function dibujarLetrasCayendo(alfaGlobal) {
       textAlign(LEFT, BASELINE);
       text(l.letra, l.x, l.y);
     } else if (l.body) {
-      // Letras físicas: posición del cuerpo
+      // Letras físicas: posición del cuerpo Matter.js
       let pos = l.body.position;
       let ang = l.body.angle;
 
-      // Opacidad controlada solo por el fade-out global
-      let a = alfaGlobal !== undefined ? alfaGlobal : 255;
+      // Detectar si la letra está "en reposo" cerca del suelo (velocidad baja)
+      // y animar su opacidad gradualmente hacia 120 (semi-transparente)
+      let vel = l.body.velocity;
+      let speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+      if (speed < 0.5) {
+        // Inicializar opacidad propia si no existe
+        if (l.alfaCaida === undefined) l.alfaCaida = 255;
+        // Bajar gradualmente: ~2 unidades por frame → tarda ~67 frames en llegar a 120
+        l.alfaCaida = max(120, l.alfaCaida - 2);
+      }
+
+      // Opacidad: usa alfaCaida si existe, luego aplica fade-out global (FADEOUT)
+      let a = l.alfaCaida !== undefined ? l.alfaCaida : 255;
+      if (alfaGlobal !== undefined) a = min(a, alfaGlobal);
       if (a <= 0) continue;
 
       fill(0, 0, 0, a);
@@ -697,12 +829,25 @@ function dibujarFecha(t, alfaExplicito) {
 
 // ── Eventos ──
 
+/**
+ * windowResized — se ejecuta cada vez que el usuario redimensiona la ventana.
+ * Reconstruimos el canvas y los límites físicos porque:
+ *   - El ancho del canvas cambia (responsive)
+ *   - Las letras necesitan reposicionarse según el nuevo ancho
+ *   - Las paredes invisibles (suelo, paredIzq, paredDer) deben ajustarse
+ *     para contener las letras que caen en el nuevo espacio
+ */
 function windowResized() {
   resizeCanvas(windowWidth, CANVAS_H);
   World.remove(world, [suelo, paredIzq, paredDer]);
   crearLimites();
 }
 
+/**
+ * mousePressed — interacción del usuario: click para saltar al siguiente haiku.
+ * Solo funciona durante ESTADO.HAIKU (cuando el haiku es visible y estable).
+ * Llamar a iniciarCiclo() reinicia la máquina de estados desde CARGANDO.
+ */
 function mousePressed() {
   if (estadoActual === ESTADO.HAIKU) {
     iniciarCiclo();

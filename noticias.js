@@ -6,24 +6,32 @@
  * Selecciona el titular más "apocalíptico" usando un puntaje
  * basado en palabras clave negativas.
  *
- * Se usa desde sketch.js para alimentar el ciclo de haiku.
+ * Se usa desde:
+ *  - sketch.js: iniciarCiclo() llamará a obtenerPeorTitular()
+ *  - refresh.mjs (servidor): contiene la misma lógica para regenerar titulares
  */
 
 const Noticias = (function () {
 
-  // Proxy CORS para poder hacer fetch desde el browser
+  // Proxy CORS necesario para evitar la política same-origin del navegador.
+  // Los feeds RSS están en dominios diferentes, por lo que fetch() directo
+  // fallaría. rss2json.com actúa como intermediario confiable.
   const CORS_PROXY = "https://api.allorigins.win/raw?url=";
   const RSS2JSON = "https://api.rss2json.com/v1/api.json?rss_url=";
 
-  // Feeds de noticias internacionales en español
+  // Fuentes de noticias internacionales en español.
+  // BBC Mundo, El País (sección internacional) y Deutsche Welle (español).
+  // Se consultan todas en paralelo para maximizar variedad de titulares.
   const FEEDS = [
     "https://feeds.bbci.co.uk/mundo/rss.xml",
     "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/internacional/portada",
     "https://rss.dw.com/xml/rss-sp-all"
   ];
 
-  // Palabras que indican noticias apocalípticas/negativas
-  // Se usa para puntuar titulares y elegir el más dramático
+  // Heurística de puntuación: lista de palabras clave que caracterizan
+  // contenido apocalíptico, desastroso o altamente negativo.
+  // Cada coincidencia suma 1 punto. Se usa en puntuarTitular() para
+  // identificar el titular más dramático/alarmista.
   const PALABRAS_NEGATIVAS = [
     "guerra", "muerte", "muertos", "crisis", "catástrofe", "desastre",
     "terremoto", "inundación", "incendio", "explosión", "ataque",
@@ -40,7 +48,9 @@ const Noticias = (function () {
     "derrota", "fracasa", "cae", "pierde", "arde", "explota"
   ];
 
-  // Titulares de respaldo por si los feeds no responden
+  // Titulares de respaldo cuando todos los feeds RSS fallan o están fuera de servicio.
+  // Se usa en obtenerTitulares() si todosLosTitulares.length === 0.
+  // Garantiza que siempre hay contenido, incluso sin conexión a internet.
   const FALLBACK = [
     "Terremoto de magnitud 7.2 sacude las costas del Pacífico y deja cientos de muertos",
     "La guerra en el este se intensifica mientras los refugiados huyen del bombardeo",
@@ -72,14 +82,17 @@ const Noticias = (function () {
   }
 
   /**
-   * obtenerTitulares — busca titulares de todos los feeds
-   * Devuelve una Promise con un array de strings (titulares).
-   * Si todos los feeds fallan, devuelve los fallback.
+   * obtenerTitulares — busca titulares de todos los feeds en paralelo
+   * Estrategia: Promise.all() con AbortController permite que todos los
+   * feeds se ejecuten simultáneamente, pero un feed lento no bloquea a los otros.
+   * Timeout de 8s por feed. Si uno falla, continúa con los demás.
+   * Devuelve array de strings (títulos) o FALLBACK si todos fallan.
    */
   async function obtenerTitulares() {
     let todosLosTitulares = [];
 
-    // Intentar cada feed en paralelo, con timeout de 8 segundos
+    // Cada feed se consulta en paralelo. AbortController() detiene la solicitud
+    // si pasa el timeout (8 segundos). Fallas parciales no bloquean las otras.
     let promesas = FEEDS.map(async (feed) => {
       try {
         let controller = new AbortController();
@@ -102,7 +115,7 @@ const Noticias = (function () {
       todosLosTitulares = todosLosTitulares.concat(titulares);
     }
 
-    // Si no obtuvimos nada, usar fallback
+    // Si no obtuvimos nada de los feeds en vivo, usar titulares de respaldo
     if (todosLosTitulares.length === 0) {
       console.log("Usando titulares de respaldo");
       return FALLBACK;
@@ -113,22 +126,27 @@ const Noticias = (function () {
 
   /**
    * obtenerPeorTitular — obtiene el titular más apocalíptico disponible
-   * Puntúa todos los titulares y devuelve el peor (más negativo).
-   * Se usa desde sketch.js para iniciar cada ciclo.
+   * Se usa desde sketch.js en iniciarCiclo() para obtener el titular inicial.
+   * 
+   * Estrategia "top 5 random pick": después de puntuar todos los titulares,
+   * se selecciona ALEATORIAMENTE entre los 5 mejores (no siempre el #1).
+   * Esto evita repetir el mismo titular todos los días y proporciona variedad
+   * manteniendo calidad (los 5 mejores son bastante alarmistas).
    *
-   * @returns {Promise<string>} el titular más dramático
+   * @returns {Promise<string>} un titular del top 5 más dramático
    */
   async function obtenerPeorTitular() {
     let titulares = await obtenerTitulares();
 
-    // Puntuar y ordenar
+    // Puntuar y ordenar por dramático descendente
     let puntuados = titulares.map(t => ({
       texto: t,
       puntaje: puntuarTitular(t)
     }));
     puntuados.sort((a, b) => b.puntaje - a.puntaje);
 
-    // Elegir aleatoriamente entre los 5 peores para variedad
+    // En lugar de siempre elegir el primero (más repetitivo),
+    // elegir aleatoriamente entre los 5 mejores para variedad
     let top = puntuados.slice(0, Math.min(5, puntuados.length));
     let elegido = top[Math.floor(Math.random() * top.length)];
 
