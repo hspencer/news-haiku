@@ -25,8 +25,8 @@ const Engine = Matter.Engine,
 const CANVAS_H = 480;
 const FONT_SIZE = 48;        // tamaño base del titular (y del haiku)
 const FECHA_SIZE = 18;
-const MARGEN = 20;            // margen izquierdo / derecho
-const SANGRIA_HAIKU = 40;    // sangría izquierda del haiku
+const MARGEN = 10;            // margen izquierdo / derecho
+const SANGRIA_HAIKU = 230;    // sangría izquierda del haiku
 const GRAVITY = 0.8;
 
 // Tiempos de cada estado en ms (ajustar a gusto)
@@ -36,15 +36,15 @@ const TIEMPOS = {
   CAYENDO: 5500,       // ventana en que las letras van pivotando y cayendo
   VIAJANDO: 6000,      // duración del viaje easing de las letras rojas
   HAIKU: 12000,        // tiempo para contemplar el haiku
-  FADEOUT: 4000        // duración del fade-out del haiku antes de reiniciar
+  FADEOUT: 5500        // duración del fade-out del haiku antes de reiniciar
 };
 
 const COLORS = {
   bg: "#FFFFFF",
   texto: "#000000",
-  fecha: "#999999",
-  haikuLetra: "#CC0000",  // rojo para las letras que se quedan
-  haiku: "#CC0000"
+  fecha: "#7e7d7d",
+  haikuLetra: "#a83217",  // rojo para las letras que se quedan
+  haiku: "#a83217"
 };
 
 // ── Estados ──
