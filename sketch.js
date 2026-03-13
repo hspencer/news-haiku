@@ -38,7 +38,7 @@ const GRAVITY = 0.8;                 // aceleración de gravedad Matter.js para 
 // cada fase de la animación. Ajustarlos cambia el ritmo narrativo completo.
 const TIEMPOS = {
   FADEIN: 4000,        // el titular aparece gradualmente (fade-in suave)
-  TITULAR: 6300,       // el titular es visible y legible (tiempo para leer)
+  TITULAR: 5700,       // el titular es visible y legible (tiempo para leer)
   CAYENDO: 5500,       // las letras pivotan y caen (ventana de física)
   VIAJANDO: 6000,      // las letras rojas viajan suavemente a su posición en el haiku
   HAIKU: 12000,        // el haiku completo es visible (tiempo para contemplar)
@@ -355,7 +355,9 @@ function crearLetras(texto) {
 
   // Calcular posición de la fecha: debajo de la última línea
   // (se usa en dibujarFecha)
-  letras._fechaY = startY + lineas.length * lineHeight + 10;
+  // Posición de la fecha: justo debajo de la última línea, con margen reducido
+  // (restamos ~2ex del tamaño de fecha para pegarla al titular)
+  letras._fechaY = startY + lineas.length * lineHeight - 8;
 }
 
 // ── Marcar letras del haiku ──
@@ -449,10 +451,18 @@ function iniciarCaida() {
   for (let l of letras) {
     if (l.esHaiku || l.letra === " ") continue;
 
-    // Crear cuerpo en la posición actual de la letra
+    // Crear cuerpo centrado en el glyph visible.
+    // La posición original (l.x, l.y) usa textAlign(LEFT, BASELINE).
+    // Para que el body (dibujado con CENTER, CENTER) coincida exactamente,
+    // calculamos el centro vertical: baseline - ascent + (ascent+descent)/2
+    textSize(l.tamano);
+    let asc = textAscent();
+    let desc = textDescent();
     let cx = l.x + l.w / 2;
-    let cy = l.y - l.h * 0.3; // centrar aprox en el glyph
-    let cuerpo = Bodies.rectangle(cx, cy, Math.max(l.w, 4), l.h * 0.7, {
+    let cy = l.y - asc + (asc + desc) / 2;
+    let bodyH = (asc + desc) * 0.85;
+    l.bodyH = bodyH; // guardar para cálculos del pivot
+    let cuerpo = Bodies.rectangle(cx, cy, Math.max(l.w, 4), bodyH, {
       restitution: 0.3,
       friction: 0.4,
       density: 0.003,
@@ -487,13 +497,14 @@ function actualizarCaida(t) {
 
       // Punto de pivot: vértice inferior (derecho o izquierdo, aleatorio)
       let lado = random() > 0.5 ? 1 : -1;
+      let halfH = (l.bodyH || l.h * 0.7) / 2;
       let pivotX = l.body.position.x + (l.w / 2) * lado * 0.8;
-      let pivotY = l.body.position.y + l.h * 0.3;
+      let pivotY = l.body.position.y + halfH;
 
       let constraint = Constraint.create({
         pointA: { x: pivotX, y: pivotY },
         bodyB: l.body,
-        pointB: { x: (l.w / 2) * lado * 0.8, y: l.h * 0.3 },
+        pointB: { x: (l.w / 2) * lado * 0.8, y: halfH },
         stiffness: 0.9,
         length: 0
       });
@@ -753,15 +764,12 @@ function dibujarLetrasCayendo(alfaGlobal) {
       let pos = l.body.position;
       let ang = l.body.angle;
 
-      // Detectar si la letra está "en reposo" cerca del suelo (velocidad baja)
-      // y animar su opacidad gradualmente hacia 120 (semi-transparente)
-      let vel = l.body.velocity;
-      let speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
-      if (speed < 0.5) {
-        // Inicializar opacidad propia si no existe
+      // Fade progresivo: desde que la letra se suelta y empieza a caer,
+      // su opacidad baja gradualmente de 255 a 120 (semi-transparente).
+      // ~1.5 unidades/frame → transición suave durante la caída (~90 frames)
+      if (l.soltada) {
         if (l.alfaCaida === undefined) l.alfaCaida = 255;
-        // Bajar gradualmente: ~2 unidades por frame → tarda ~67 frames en llegar a 120
-        l.alfaCaida = max(120, l.alfaCaida - 2);
+        l.alfaCaida = max(120, l.alfaCaida - 1.5);
       }
 
       // Opacidad: usa alfaCaida si existe, luego aplica fade-out global (FADEOUT)
@@ -794,8 +802,10 @@ function animarViaje(t) {
     if (!l.esHaiku || !l.objetivo || !l.origenViaje) continue;
 
     if (l.esFantasma) {
-      // Fade-in: opacidad sube de 0 a 255 durante el viaje
-      l.opacidad = eased * 255;
+      // Fade-in retrasado: aparecen recién en la segunda mitad de VIAJANDO.
+      // progreso 0→0.5 = invisible, 0.5→1.0 = fade-in de 0 a 255
+      let fantasmaProgreso = constrain((progreso - 0.5) / 0.5, 0, 1);
+      l.opacidad = easeInOutCubic(fantasmaProgreso) * 255;
     } else {
       l.x = lerp(l.origenViaje.x, l.objetivo.x, eased);
       l.y = lerp(l.origenViaje.y, l.objetivo.y, eased);
