@@ -1,0 +1,5 @@
+.DS_Store
+node_modules/
+
+# Proxy local con API key — NO subir
+proxy-server.js
