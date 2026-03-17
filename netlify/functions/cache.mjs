@@ -44,7 +44,8 @@ export default async (req) => {
   try {
     // Leer del almacenamiento Netlify Blobs (la misma key "current" que escribe refresh.mjs)
     const store = getStore("haiku-cache");
-    const data = await store.getJSON("current");
+    const raw = await store.get("current");
+    const data = raw ? JSON.parse(raw) : null;
 
     // FALLBACK A CACHÉ VACÍO (degradación elegante)
     // Si el caché no existe aún (primera vez) o está vacío, retornar array vacío
