@@ -209,7 +209,7 @@ export default async (req) => {
     totalEnPool: pool.length
   };
 
-  await store.setJSON("current", cacheData);
+  await store.set("current", JSON.stringify(cacheData));
 
   return new Response(JSON.stringify({
     ok: true,

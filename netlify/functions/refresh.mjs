@@ -333,7 +333,7 @@ export default async (req) => {
     totalEnPool: pool.length
   };
 
-  await store.setJSON("current", cacheData);
+  await store.set("current", JSON.stringify(cacheData));
   console.log(`Pool: ${items.length} nuevos + ${poolAnterior.length} previos = ${pool.length} total`);
 
   return new Response(JSON.stringify({
