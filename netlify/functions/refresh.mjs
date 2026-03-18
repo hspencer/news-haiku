@@ -1,11 +1,12 @@
 /**
- * refresh.mjs — Función scheduled de Netlify (cada 12 horas)
+ * refresh.mjs — Función scheduled de Netlify (cada 6 horas)
  *
- * Busca titulares apocalípticos vía RSS, genera haikus con Groq/Llama,
+ * Busca titulares con interés poético vía RSS (noticias, ciencia, cultura),
+ * genera haikus con Groq/Llama usando una voz amereidiana,
  * y almacena los pares {titular, versos} en Netlify Blobs.
  * El cliente consume este caché vía cache.mjs sin tocar la API de Groq.
  *
- * Se ejecuta automáticamente con cron "0 12 * * *" (cada 12h).
+ * Se ejecuta automáticamente con cron "0 */6 * * *" (cada 6h).
  * También se puede invocar manualmente via POST /.netlify/functions/refresh
  */
 
@@ -18,23 +19,31 @@ const RSS2JSON = "https://api.rss2json.com/v1/api.json?rss_url=";
 const FEEDS = [
   "https://feeds.bbci.co.uk/mundo/rss.xml",
   "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/internacional/portada",
-  "https://rss.dw.com/xml/rss-sp-all"
+  "https://rss.dw.com/xml/rss-sp-all",
+  "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/ciencia/portada",
+  "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/cultura/portada",
+  "https://feeds.bbci.co.uk/mundo/temas/ciencia/rss.xml"
 ];
 
-const PALABRAS_NEGATIVAS = [
-  "guerra", "muerte", "muertos", "crisis", "catástrofe", "desastre",
-  "terremoto", "inundación", "incendio", "explosión", "ataque",
-  "bombardeo", "víctimas", "tragedia", "conflicto", "destrucción",
-  "pandemia", "emergencia", "colapso", "hambre", "sequía",
-  "huracán", "tornado", "tsunami", "erupción", "accidente",
-  "violencia", "masacre", "genocidio", "refugiados", "éxodo",
-  "caos", "alarma", "pánico", "amenaza", "peligro",
-  "contaminación", "extinción", "apocalipsis", "devastación",
-  "derrumbe", "naufragio", "disparo", "asesinato", "invasión",
-  "bomba", "misil", "nuclear", "radiación", "tóxico",
-  "pobreza", "desempleo", "inflación", "recesión", "quiebra",
-  "muere", "mata", "hiere", "sufre", "destruye", "arrasa",
-  "derrota", "fracasa", "cae", "pierde", "arde", "explota"
+// Palabras que indican titulares con sustancia poética (conflicto, naturaleza, descubrimiento, lo humano)
+const PALABRAS_POETICAS = [
+  // conflicto y drama humano
+  "guerra", "muerte", "muertos", "crisis", "refugiados", "éxodo",
+  "hambre", "sequía", "naufragio", "frontera", "exilio", "migración",
+  // naturaleza y territorio
+  "terremoto", "inundación", "incendio", "volcán", "erupción", "glaciar",
+  "huracán", "tornado", "tsunami", "océano", "selva", "desierto",
+  "río", "montaña", "isla", "bosque", "costa", "pampa",
+  // ciencia y descubrimiento
+  "descubren", "hallazgo", "fósil", "especie", "extinción", "genoma",
+  "asteroide", "satélite", "telescopio", "órbita", "partícula", "átomo",
+  "expedición", "excavación", "antigua", "milenario", "ancestral",
+  // lo humano y cultural
+  "lengua", "idioma", "pueblo", "comunidad", "ritual", "ceremonia",
+  "ruinas", "templo", "tumba", "manuscrito", "pintura", "museo",
+  // elementos concretos
+  "agua", "fuego", "tierra", "piedra", "hierro", "sal", "hueso",
+  "sangre", "semilla", "raíz", "fruto", "piel", "cuerpo"
 ];
 
 // ── Groq ──
@@ -42,26 +51,27 @@ const PALABRAS_NEGATIVAS = [
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const LLM_MODEL = "llama-3.3-70b-versatile";
 
-const SYSTEM_PROMPT = `Eres Matsuo Bashō reencarnado, escribiendo en español. Tu arte: recibir un titular de noticias —violento, apocalíptico, desolador— y destilarlo en un haiku que revele lo sagrado escondido en la catástrofe.
+const SYSTEM_PROMPT = `Eres una voz poética americana. Tu arte: recibir un titular de noticias y cruzarlo —travesía— hasta desvelar lo que en él se regala sin ser visto. No consolar. No moralizar. Desvelar.
 
 POÉTICA:
-- El haiku no consuela ni moraliza. Observa. Encuentra el instante de belleza dentro del horror, como una flor en un campo de batalla.
-- Prefiere lo concreto a lo abstracto: una imagen precisa vale más que un sentimiento nombrado. No digas "esperanza", muestra el brote verde entre las cenizas.
-- Usa la naturaleza como espejo: estaciones, agua, luz, animales, viento. El mundo natural comenta la tragedia humana sin juzgarla.
-- Busca el "kireji" (corte): que entre el segundo y tercer verso haya un giro, un salto, una sorpresa silenciosa.
-- Cada palabra debe pesar. Elimina todo lo que sobre.
+- Cada titular guarda un don escondido: encuéntralo. No busques belleza "dentro del horror" —eso es un cliché. Busca lo que irrumpe: lo desconocido que aparece cuando las palabras se abren.
+- Prefiere lo concreto y lo americano: un guijarro en nieve, el toro negro contra el pasto, flamencos sobre azogue, la barcaza entre espumas, el petróleo que emigra, ríos que desaparecen en sus médanos. Nada de "arenas", "sombras" ni "vientos" genéricos.
+- No uses la naturaleza como espejo de lo humano. Que la naturaleza sea ella misma: autónoma, indiferente, presente.
+- Busca el corte: que entre el segundo y tercer verso haya un salto, una abertura, algo que no se esperaba. Como dice Amereida: "la señal verdadera miente como el día / para salvar de otros usos / la noche regalada".
+- Cada palabra debe pesar. Elimina todo lo que sobre. La carencia es riqueza.
+- VOCABULARIO PROHIBIDO: no uses estas palabras gastadas: arena, viento, sombra, ceniza, brote, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido. Busca palabras más precisas, más concretas, más inesperadas.
 
 MÉTRICA ESTRICTA:
 - Exactamente 3 versos: 5 sílabas / 7 sílabas / 5 sílabas (conteo silábico español).
 - Cuenta con cuidado los diptongos (cie-lo = 2 sílabas) y los hiatos (rí-o = 2 sílabas).
 
 RESTRICCIONES:
-- Intenta reutilizar palabras o fragmentos del titular cuando sea posible, transformando su carga negativa en otra cosa. Pero la calidad poética es más importante que la reutilización.
-- Usa SOLO palabras que existan en el diccionario de la RAE. No inventes palabras. No uses neologismos. Cada palabra debe ser una palabra real del español.
+- Transforma palabras del titular cuando puedas, pero la calidad poética manda.
+- Usa SOLO palabras reales del español (diccionario RAE). No inventes.
 
 FORMATO:
-- Responde SOLO con los 3 versos, uno por línea.
-- Sin puntuación al final de los versos. Sin comillas. Sin título. Sin explicación.
+- SOLO los 3 versos, uno por línea.
+- Sin puntuación final. Sin comillas. Sin título. Sin explicación.
 - Todo en minúsculas.`;
 
 // ── Cantidad de items a generar por refresco ──
@@ -74,14 +84,15 @@ const ITEMS_POR_REFRESH = 12;
 // ── Funciones auxiliares ──
 
 /**
- * puntuarTitular — puntaje "apocalíptico" basado en palabras negativas
+ * puntuarTitular — puntaje de "interés poético" basado en palabras con sustancia
  */
 function puntuarTitular(titular) {
   const t = titular.toLowerCase();
   let puntaje = 0;
-  for (const palabra of PALABRAS_NEGATIVAS) {
+  for (const palabra of PALABRAS_POETICAS) {
     if (t.includes(palabra)) puntaje++;
   }
+  // Bonus por largo (titulares más largos suelen tener más contenido concreto)
   puntaje += Math.min(t.split(" ").length / 10, 1);
   return puntaje;
 }
@@ -118,7 +129,7 @@ async function obtenerTitulares() {
 }
 
 /**
- * seleccionarMejores — puntúa y selecciona los N titulares más apocalípticos
+ * seleccionarMejores — puntúa y selecciona los N titulares con mayor interés poético
  */
 function seleccionarMejores(titulares, n) {
   const puntuados = titulares.map(t => ({
@@ -251,8 +262,8 @@ export default async (req) => {
 
   console.log(`Obtenidos ${titulares.length} titulares de RSS`);
 
-  // PASO 2: Seleccionar los titulares más apocalípticos
-  // Puntúa cada titular según la presencia de palabras negativas (PALABRAS_NEGATIVAS)
+  // PASO 2: Seleccionar los titulares con mayor interés poético
+  // Puntúa cada titular según la presencia de palabras con sustancia (PALABRAS_POETICAS)
   // Toma los N=ITEMS_POR_REFRESH más altos, evitando duplicados muy similares
   const mejores = seleccionarMejores(titulares, ITEMS_POR_REFRESH);
   console.log(`Seleccionados ${mejores.length} titulares para generar haikus`);

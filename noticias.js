@@ -2,9 +2,9 @@
  * noticias.js — Obtención de titulares desde feeds RSS
  *
  * Usa rss2json.com como proxy CORS para parsear feeds RSS
- * de fuentes de noticias en español (BBC Mundo, El País, DW).
- * Selecciona el titular más "apocalíptico" usando un puntaje
- * basado en palabras clave negativas.
+ * de fuentes de noticias en español (BBC Mundo, El País, DW + ciencia y cultura).
+ * Selecciona titulares con mayor interés poético usando un puntaje
+ * basado en palabras con sustancia (conflicto, naturaleza, descubrimiento, lo humano).
  *
  * Se usa desde:
  *  - sketch.js: iniciarCiclo() llamará a obtenerPeorTitular()
@@ -19,64 +19,69 @@ const Noticias = (function () {
   const CORS_PROXY = "https://api.allorigins.win/raw?url=";
   const RSS2JSON = "https://api.rss2json.com/v1/api.json?rss_url=";
 
-  // Fuentes de noticias internacionales en español.
-  // BBC Mundo, El País (sección internacional) y Deutsche Welle (español).
-  // Se consultan todas en paralelo para maximizar variedad de titulares.
+  // Fuentes de noticias en español: internacionales, ciencia y cultura.
+  // Se consultan todas en paralelo para maximizar variedad temática.
   const FEEDS = [
     "https://feeds.bbci.co.uk/mundo/rss.xml",
     "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/internacional/portada",
-    "https://rss.dw.com/xml/rss-sp-all"
+    "https://rss.dw.com/xml/rss-sp-all",
+    "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/ciencia/portada",
+    "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/cultura/portada",
+    "https://feeds.bbci.co.uk/mundo/temas/ciencia/rss.xml"
   ];
 
-  // Heurística de puntuación: lista de palabras clave que caracterizan
-  // contenido apocalíptico, desastroso o altamente negativo.
+  // Heurística de puntuación: palabras que indican sustancia poética.
+  // Incluye conflicto, naturaleza, descubrimiento, lo humano concreto.
   // Cada coincidencia suma 1 punto. Se usa en puntuarTitular() para
-  // identificar el titular más dramático/alarmista.
-  const PALABRAS_NEGATIVAS = [
-    "guerra", "muerte", "muertos", "crisis", "catástrofe", "desastre",
-    "terremoto", "inundación", "incendio", "explosión", "ataque",
-    "bombardeo", "víctimas", "tragedia", "conflicto", "destrucción",
-    "pandemia", "emergencia", "colapso", "hambre", "sequía",
-    "huracán", "tornado", "tsunami", "erupción", "accidente",
-    "violencia", "masacre", "genocidio", "refugiados", "éxodo",
-    "caos", "alarma", "pánico", "amenaza", "peligro",
-    "contaminación", "extinción", "apocalipsis", "devastación",
-    "derrumbe", "naufragio", "disparo", "asesinato", "invasión",
-    "bomba", "misil", "nuclear", "radiación", "tóxico",
-    "pobreza", "desempleo", "inflación", "recesión", "quiebra",
-    "muere", "mata", "hiere", "sufre", "destruye", "arrasa",
-    "derrota", "fracasa", "cae", "pierde", "arde", "explota"
+  // identificar titulares con materia prima para un haiku.
+  const PALABRAS_POETICAS = [
+    // conflicto y drama humano
+    "guerra", "muerte", "muertos", "crisis", "refugiados", "éxodo",
+    "hambre", "sequía", "naufragio", "frontera", "exilio", "migración",
+    // naturaleza y territorio
+    "terremoto", "inundación", "incendio", "volcán", "erupción", "glaciar",
+    "huracán", "tornado", "tsunami", "océano", "selva", "desierto",
+    "río", "montaña", "isla", "bosque", "costa", "pampa",
+    // ciencia y descubrimiento
+    "descubren", "hallazgo", "fósil", "especie", "extinción", "genoma",
+    "asteroide", "satélite", "telescopio", "órbita", "partícula", "átomo",
+    "expedición", "excavación", "antigua", "milenario", "ancestral",
+    // lo humano y cultural
+    "lengua", "idioma", "pueblo", "comunidad", "ritual", "ceremonia",
+    "ruinas", "templo", "tumba", "manuscrito", "pintura", "museo",
+    // elementos concretos
+    "agua", "fuego", "tierra", "piedra", "hierro", "sal", "hueso",
+    "sangre", "semilla", "raíz", "fruto", "piel", "cuerpo"
   ];
 
   // Titulares de respaldo cuando todos los feeds RSS fallan o están fuera de servicio.
-  // Se usa en obtenerTitulares() si todosLosTitulares.length === 0.
-  // Garantiza que siempre hay contenido, incluso sin conexión a internet.
+  // Mezcla de temas: conflicto, ciencia, naturaleza, cultura, territorio americano.
   const FALLBACK = [
     "Terremoto de magnitud 7.2 sacude las costas del Pacífico y deja cientos de muertos",
-    "La guerra en el este se intensifica mientras los refugiados huyen del bombardeo",
-    "Crisis climática: los glaciares se derriten al doble de velocidad prevista",
-    "Incendios forestales arrasan miles de hectáreas y destruyen pueblos enteros",
-    "Hambruna amenaza a millones mientras las cosechas se pierden por la sequía",
-    "Inundaciones catastróficas dejan a ciudades enteras bajo el agua",
-    "La pandemia silenciosa que los gobiernos prefieren ignorar avanza sin freno",
-    "Miles de refugiados abandonan sus hogares ante la violencia que no cesa",
-    "El colapso económico arrastra a millones a la pobreza extrema",
-    "Explosión en planta química obliga a evacuar a toda una región",
-    "La extinción masiva de especies alcanza un punto sin retorno según científicos",
-    "Misiles cruzan la frontera mientras el mundo observa en silencio la destrucción"
+    "Descubren una especie de árbol milenario que se creía extinta en la selva amazónica",
+    "Crisis climática: los glaciares patagónicos se derriten al doble de velocidad prevista",
+    "Excavación revela un templo sumergido de tres mil años bajo las aguas del lago Titicaca",
+    "Miles de refugiados cruzan la frontera a pie cargando solo lo que pueden llevar",
+    "Un río subterráneo desconocido aparece bajo el desierto de Atacama",
+    "La erupción del volcán obliga a evacuar pueblos enteros entre la ceniza y el fuego",
+    "Hallan un manuscrito medieval con el primer mapa de las costas americanas",
+    "Las ballenas jorobadas cambian sus rutas migratorias por el calentamiento del océano",
+    "Comunidades indígenas recuperan una lengua que se creía perdida hace un siglo",
+    "Expedición científica desciende al fondo de la fosa marina más profunda del Atlántico",
+    "El último glaciar tropical de los Andes podría desaparecer antes de fin de década"
   ];
 
   /**
-   * puntuarTitular — asigna un "puntaje apocalíptico" a un titular
-   * Más alto = más negativo/dramático.
+   * puntuarTitular — asigna un puntaje de "interés poético" a un titular.
+   * Más alto = más materia prima para un haiku.
    */
   function puntuarTitular(titular) {
     let t = titular.toLowerCase();
     let puntaje = 0;
-    for (let palabra of PALABRAS_NEGATIVAS) {
+    for (let palabra of PALABRAS_POETICAS) {
       if (t.includes(palabra)) puntaje++;
     }
-    // Bonus por largo (titulares más largos suelen ser más dramáticos)
+    // Bonus por largo (titulares más largos suelen tener más contenido concreto)
     puntaje += Math.min(t.split(" ").length / 10, 1);
     return puntaje;
   }
@@ -125,15 +130,14 @@ const Noticias = (function () {
   }
 
   /**
-   * obtenerPeorTitular — obtiene el titular más apocalíptico disponible
+   * obtenerPeorTitular — obtiene el titular con mayor interés poético
    * Se usa desde sketch.js en iniciarCiclo() para obtener el titular inicial.
-   * 
+   *
    * Estrategia "top 5 random pick": después de puntuar todos los titulares,
    * se selecciona ALEATORIAMENTE entre los 5 mejores (no siempre el #1).
-   * Esto evita repetir el mismo titular todos los días y proporciona variedad
-   * manteniendo calidad (los 5 mejores son bastante alarmistas).
+   * Esto evita repetir el mismo titular todos los días y proporciona variedad.
    *
-   * @returns {Promise<string>} un titular del top 5 más dramático
+   * @returns {Promise<string>} un titular del top 5 con más sustancia poética
    */
   async function obtenerPeorTitular() {
     let titulares = await obtenerTitulares();

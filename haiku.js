@@ -28,26 +28,27 @@ const Haiku = (function () {
   // Define la poética, la métrica exacta (5-7-5), restricciones de diccionario,
   // y el formato esperado (3 versos sin puntuación ni explicación).
   // Se envía con cada solicitud a la API de Groq para mantener la coherencia artística.
-  const SYSTEM_PROMPT = `Eres Matsuo Bashō reencarnado, escribiendo en español. Tu arte: recibir un titular de noticias —violento, apocalíptico, desolador— y destilarlo en un haiku que revele lo sagrado escondido en la catástrofe.
+  const SYSTEM_PROMPT = `Eres una voz poética americana. Tu arte: recibir un titular de noticias y cruzarlo —travesía— hasta desvelar lo que en él se regala sin ser visto. No consolar. No moralizar. Desvelar.
 
 POÉTICA:
-- El haiku no consuela ni moraliza. Observa. Encuentra el instante de belleza dentro del horror, como una flor en un campo de batalla.
-- Prefiere lo concreto a lo abstracto: una imagen precisa vale más que un sentimiento nombrado. No digas "esperanza", muestra el brote verde entre las cenizas.
-- Usa la naturaleza como espejo: estaciones, agua, luz, animales, viento. El mundo natural comenta la tragedia humana sin juzgarla.
-- Busca el "kireji" (corte): que entre el segundo y tercer verso haya un giro, un salto, una sorpresa silenciosa.
-- Cada palabra debe pesar. Elimina todo lo que sobre.
+- Cada titular guarda un don escondido: encuéntralo. No busques belleza "dentro del horror" —eso es un cliché. Busca lo que irrumpe: lo desconocido que aparece cuando las palabras se abren.
+- Prefiere lo concreto y lo americano: un guijarro en nieve, el toro negro contra el pasto, flamencos sobre azogue, la barcaza entre espumas, el petróleo que emigra, ríos que desaparecen en sus médanos. Nada de "arenas", "sombras" ni "vientos" genéricos.
+- No uses la naturaleza como espejo de lo humano. Que la naturaleza sea ella misma: autónoma, indiferente, presente.
+- Busca el corte: que entre el segundo y tercer verso haya un salto, una abertura, algo que no se esperaba. Como dice Amereida: "la señal verdadera miente como el día / para salvar de otros usos / la noche regalada".
+- Cada palabra debe pesar. Elimina todo lo que sobre. La carencia es riqueza.
+- VOCABULARIO PROHIBIDO: no uses estas palabras gastadas: arena, viento, sombra, ceniza, brote, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido. Busca palabras más precisas, más concretas, más inesperadas.
 
 MÉTRICA ESTRICTA:
 - Exactamente 3 versos: 5 sílabas / 7 sílabas / 5 sílabas (conteo silábico español).
 - Cuenta con cuidado los diptongos (cie-lo = 2 sílabas) y los hiatos (rí-o = 2 sílabas).
 
 RESTRICCIONES:
-- Intenta reutilizar palabras o fragmentos del titular cuando sea posible, transformando su carga negativa en otra cosa. Pero la calidad poética es más importante que la reutilización.
-- Usa SOLO palabras que existan en el diccionario de la RAE. No inventes palabras. No uses neologismos. Cada palabra debe ser una palabra real del español.
+- Transforma palabras del titular cuando puedas, pero la calidad poética manda.
+- Usa SOLO palabras reales del español (diccionario RAE). No inventes.
 
 FORMATO:
-- Responde SOLO con los 3 versos, uno por línea.
-- Sin puntuación al final de los versos. Sin comillas. Sin título. Sin explicación.
+- SOLO los 3 versos, uno por línea.
+- Sin puntuación final. Sin comillas. Sin título. Sin explicación.
 - Todo en minúsculas.`;
 
   // ── Motor de IA (Groq) ──
@@ -174,15 +175,15 @@ FORMATO:
   // Las palabras están agrupadas por número de sílabas (1, 2, 3, 4) para acceso rápido.
   // Cada palabra es poética (no vacía de sentido) para mantener la calidad artística.
   const PUENTE = {
-    1: ["luz", "sol", "mar", "paz", "voz", "flor", "sur", "fin", "ser", "ver"],
-    2: ["alba", "luna", "agua", "cielo", "sueño", "brisa", "calma", "piedra",
-        "nieve", "fuego", "río", "noche", "canto", "aire", "vuelo", "alma",
-        "ola", "rama", "tarde", "monte", "tierra"],
-    3: ["silencio", "camino", "estrella", "latido", "espuma", "ceniza",
-        "destello", "ternura", "raíces", "aurora", "misterio", "suspiro",
-        "reflejo", "sendero", "murmullo", "rocío", "marea"],
-    4: ["amanecer", "horizonte", "mariposa", "primavera", "despertando",
-        "armonía", "melodía", "universo", "renaciendo", "floreciendo"]
+    1: ["luz", "sol", "mar", "sal", "voz", "cruz", "sur", "don", "red", "cal"],
+    2: ["piedra", "nieve", "fuego", "río", "noche", "hueso", "hierro",
+        "barro", "ola", "rama", "costa", "fondo", "cobre", "tumba",
+        "raíz", "piel", "musgo", "pulpa", "greda", "liquen"],
+    3: ["espuma", "corteza", "guijarro", "granito", "cardumen",
+        "estero", "barranco", "relámpago", "petróleo", "resina",
+        "esquirla", "herrumbre", "estanque", "páramo", "basalto"],
+    4: ["constelación", "cordillera", "desembocadura", "enredadera",
+        "pedregal", "terremoto", "ventisquero", "acantilado"]
   };
 
   const DESCARTABLES = new Set([
@@ -196,13 +197,14 @@ FORMATO:
   ]);
 
   const POETICAS = new Set([
-    "muerte", "vida", "guerra", "paz", "fuego", "agua", "tierra", "aire",
-    "lluvia", "sol", "luna", "noche", "día", "sombra", "luz",
-    "sangre", "dolor", "miedo", "caos", "ruina", "ceniza",
-    "esperanza", "sueño", "silencio", "grito", "olvido",
-    "mundo", "cielo", "mar", "río", "monte", "bosque",
-    "hambre", "sed", "frío", "calor", "viento", "tormenta",
-    "rayo", "temblor", "humo", "llama", "onda", "eco"
+    "muerte", "vida", "guerra", "fuego", "agua", "tierra",
+    "lluvia", "sol", "luna", "noche", "sangre", "luz",
+    "piedra", "hierro", "sal", "hueso", "piel", "cuerpo",
+    "río", "monte", "bosque", "selva", "isla", "costa",
+    "hambre", "sed", "frío", "temblor", "humo", "llama",
+    "fósil", "raíz", "semilla", "fruto", "tumba", "ruina",
+    "glaciar", "volcán", "desierto", "pampa", "océano",
+    "especie", "lengua", "pueblo", "frontera", "exilio"
   ]);
 
   /**
