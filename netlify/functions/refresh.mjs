@@ -6,7 +6,7 @@
  * y almacena los pares {titular, versos} en Netlify Blobs.
  * El cliente consume este caché vía cache.mjs sin tocar la API de Groq.
  *
- * Se ejecuta automáticamente con cron "0 */6 * * *" (cada 6h).
+ * Se ejecuta automáticamente con cron "0 *6 * * *" (cada 6h).
  * También se puede invocar manualmente via POST /.netlify/functions/refresh
  */
 
