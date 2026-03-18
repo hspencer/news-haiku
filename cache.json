@@ -1,104 +1,104 @@
 {
   "items": [
     {
+      "titular": "Las imágenes de los cementerios de ballenas que transforman las profundidades del mar",
+      "versos": [
+        "calaveras sumergidas",
+        "ballenas en el fondo",
+        "huesos blancos flotan"
+      ]
+    },
+    {
       "titular": "La Academia de Ciencias de EE UU premia a cuatro españoles por explicar cómo la vida salió de un callejón sin salida y conquistó la Tierra",
       "versos": [
-        "callejón sin fin",
-        "laberintos microscópicos se abren",
-        "salida en el río"
+        "salir del callejón",
+        "vida en expansión",
+        "tierra conquistada"
       ]
     },
     {
       "titular": "El Salvador aprueba el cambio constitucional impulsado por Bukele para permitir la cadena perpetua",
       "versos": [
-        "cadenas frágiles",
-        "perpetuo buqueleando",
-        "salvaje perpetuo"
+        "piedra dura",
+        "celda oscura",
+        "hierro frío"
+      ]
+    },
+    {
+      "titular": "De qué acusan en EE.UU. a Sebastián Marset, el narco uruguayo al que consideran como el \"Pablo Escobar de la era moderna\"",
+      "versos": [
+        "narcos en fila",
+        "pistolas bajo hielo",
+        "oro en el río"
+      ]
+    },
+    {
+      "titular": "Declaran a Marruecos ganador de la Copa de África de fútbol pese a que perdió la final contra Senegal",
+      "versos": [
+        "piedra negra",
+        "fútbol se cae",
+        "senegal duele"
+      ]
+    },
+    {
+      "titular": "Irán mantiene la amenaza en el estrecho de Ormuz pese a abrir el paso a algunos buques de países no enemigos",
+      "versos": [
+        "paso estrecho",
+        "aguas negras",
+        "petróleo fluye"
       ]
     },
     {
       "titular": "La inesperada consecuencia de la guerra: el régimen iraní sacrifica su legitimidad islámica",
       "versos": [
-        "sangre en el suelo",
-        "régimen sin velo islámico",
-        "piedra sin fe"
+        "regímenes caen",
+        "islam se desangra",
+        "legitimidad se quiebra"
       ]
     },
     {
       "titular": "Dimite el director de la lucha antiterrorista de Estados Unidos por la guerra en Irán",
       "versos": [
-        "fuego en la sede",
-        "guerra con alas negras",
-        "miedo en el río"
+        "guerra en irán",
+        "fuego en petróleo",
+        "médanos de arena"
       ]
     },
     {
       "titular": "Quién es Pete Hegseth, el \"secretario de Guerra\" de Trump",
       "versos": [
-        "guerra late",
-        "sangre en el despacho",
-        "hombre de acero"
+        "petróleo negro",
+        "guerra en pantallas",
+        "trumpetea fuerte"
       ]
     },
     {
       "titular": "Un embarazo sano no depende solo de la mujer: la salud del padre es crucial para el desarrollo infantil",
       "versos": [
-        "sangre compartida",
-        "células paternas flotan",
-        "bebé sin rostro"
+        "salud compartida",
+        "hombre y mujer",
+        "sangre común"
       ]
     },
     {
-      "titular": "Guerra en Irán: los enfermos crónicos luchan por sobrevivir",
+      "titular": "Marc Abrahams, fundador de los ‘Nobel de broma’: “Los científicos en EE UU están muy enfadados. La gente está despertando”",
       "versos": [
-        "sangre seca",
-        "falta de medicinas pesa",
-        "parches rotos"
+        "ciegos despertamos",
+        "médanos de enfado",
+        "fuego en el río"
       ]
     },
     {
-      "titular": "Los retos políticos que enfrenta Netanyahu en Israel a medida que se desvanecen las esperanzas de un cambio de régimen en Irán",
+      "titular": "De Apolo 8 a Artemis 2: seis décadas después del primer vuelo a la Luna, la carrera espacial ya no es la misma",
       "versos": [
-        "frente a irán",
-        "desvanecen régimen",
-        "política seca"
-      ]
-    },
-    {
-      "titular": "Dimite el jefe de la lucha antiterrorista de EE.UU. al considerar que Irán \"no presentaba una amenaza inminente\"",
-      "versos": [
-        "fuego en el muro",
-        "contrariedad se despliega en el desierto",
-        "hierba seca late"
-      ]
-    },
-    {
-      "titular": "¡Victoria histórica! Venezuela gana su primer Clásico Mundial de Béisbol tras derrotar a EE.UU. en Miami",
-      "versos": [
-        "pelota marrón",
-        "falta de sudor en Miami",
-        "guantes vacíos"
-      ]
-    },
-    {
-      "titular": "Las imágenes de los cementerios de ballenas que transforman las profundidades del mar",
-      "versos": [
-        "caras blanqueadas",
-        "nalgas de ballena muerta",
-        "grasa congelada"
-      ]
-    },
-    {
-      "titular": "Quién era Alí Larijani, el jefe de seguridad del gobierno de Irán y figura clave del régimen que Israel mató en un ataque aéreo",
-      "versos": [
-        "hombre de mármol",
-        "fuego en la ciudadela",
-        "petróleo sangra"
+        "metal frio",
+        "luna pálida",
+        "sueño oxidado"
       ]
     }
   ],
-  "refreshedAt": 1773812510835,
-  "refreshedAtISO": "2026-03-18T05:41:50.835Z",
+  "refreshedAt": 1773815227576,
+  "refreshedAtISO": "2026-03-18T06:27:07.576Z",
   "totalTitulares": 60,
   "totalGenerados": 12
 }

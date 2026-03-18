@@ -2,6 +2,10 @@
 
 Obtiene titulares apocalípticos de noticias en español y los transforma en un haiku, animado con física tipográfica.
 
+[Live](https://news-to-haiku.netlify.app/)
+
+[![Netlify Status](https://api.netlify.com/api/v1/badges/59f7d0a7-09d4-418e-9072-23eea2931798/deploy-status)](https://app.netlify.com/projects/news-to-haiku/deploys)
+
 Las letras del titular que no pertenecen al haiku pivotan y caen (Matter.js). Las que sí, se tiñen de rojo y viajan a su posición en el poema. Las letras del haiku que no existen en el titular aparecen como letras "fantasma" con fade-in.
 
 El haiku es generado por Groq (Llama 3.3 70B) con fallback algorítmico basado en conteo silábico español.
