@@ -93,10 +93,10 @@ FORMATO:
 
 // ── Cantidad de items a generar por refresco ──
 
-// Cantidad de haikus a generar en cada refresco: 12 titulares apocalípticos
-// Cantidad elegida para balancear: suficientes para variedad sin exceder cuota gratuita de Groq
-// (límite típico: 25 req/min en tier gratuito, esta función tarda ~15-20 segundos)
-const ITEMS_POR_REFRESH = 12;
+// Generar 6 haikus por refresco (~6s, cabe en el timeout de 10s de Netlify)
+// Se acumulan en un pool rotativo de 24, descartando los más antiguos
+const ITEMS_POR_REFRESH = 6;
+const MAX_POOL = 24;
 
 // ── Funciones auxiliares ──
 
@@ -305,27 +305,40 @@ export default async (req) => {
     await new Promise(r => setTimeout(r, 800));
   }
 
-  console.log(`Generados ${items.length} haikus exitosamente`);
+  console.log(`Generados ${items.length} haikus nuevos`);
 
-  // PASO 4: Guardar en Netlify Blobs (almacenamiento persistente de Netlify)
-  // getStore("haiku-cache") obtiene el namespace de caché específico de esta aplicación
-  // setJSON("current", ...) guarda el objeto JSON bajo la clave "current"
-  // Otros endpoints (cache.mjs) leen de esta misma clave
+  // PASO 4: Leer caché existente y acumular (pool rotativo de MAX_POOL)
   const store = getStore("haiku-cache");
+  let poolAnterior = [];
+  try {
+    const raw = await store.get("current");
+    if (raw) {
+      const anterior = JSON.parse(raw);
+      poolAnterior = anterior.items || [];
+    }
+  } catch (e) {
+    console.log("Sin caché previo, iniciando pool nuevo");
+  }
+
+  // Agregar los nuevos al inicio, mantener máximo MAX_POOL
+  const pool = [...items, ...poolAnterior].slice(0, MAX_POOL);
+
   const cacheData = {
-    items,
+    items: pool,
     refreshedAt: Date.now(),
     refreshedAtISO: new Date().toISOString(),
     totalTitulares: titulares.length,
-    totalGenerados: items.length
+    totalGenerados: items.length,
+    totalEnPool: pool.length
   };
 
   await store.setJSON("current", cacheData);
-  console.log("Caché guardado en Netlify Blobs");
+  console.log(`Pool: ${items.length} nuevos + ${poolAnterior.length} previos = ${pool.length} total`);
 
   return new Response(JSON.stringify({
     ok: true,
-    generados: items.length,
+    nuevos: items.length,
+    enPool: pool.length,
     refreshedAt: cacheData.refreshedAtISO
   }), {
     headers: { "Content-Type": "application/json" }
