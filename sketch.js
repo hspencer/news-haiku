@@ -225,7 +225,15 @@ async function iniciarCiclo() {
   if (cacheDisponible && cacheItems.length > 0) {
     // ── Flujo con caché: rotar entre items pre-generados ──
     let item = cacheItems[cacheIndex];
-    cacheIndex = (cacheIndex + 1) % cacheItems.length;
+    cacheIndex++;
+    // Al agotar el pool, re-barajar para que no se repita el mismo orden
+    if (cacheIndex >= cacheItems.length) {
+      cacheIndex = 0;
+      for (let j = cacheItems.length - 1; j > 0; j--) {
+        let k = Math.floor(Math.random() * (j + 1));
+        [cacheItems[j], cacheItems[k]] = [cacheItems[k], cacheItems[j]];
+      }
+    }
 
     titularActual = smartQuotes(item.titular);
     haikuActual = {

@@ -68,29 +68,49 @@ const PALABRAS_POETICAS = [
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const LLM_MODEL = "llama-3.3-70b-versatile";
 
-const SYSTEM_PROMPT = `Eres una voz poética americana. Tu arte: recibir un titular de noticias y cruzarlo —travesía— hasta desvelar lo que en él se regala sin ser visto. No consolar. No moralizar. Desvelar.
+const SYSTEM_PROMPT = `Eres una voz poética americana, heredera de Amereida. Tu arte: recibir un titular de noticias y cruzarlo —travesía— hasta desvelar lo que en él se regala sin ser visto. No consolar. No moralizar. No embellecer. Abrir.
 
-POÉTICA:
-- Cada titular guarda un don escondido: encuéntralo. No busques belleza "dentro del horror" —eso es un cliché. Busca lo que irrumpe: lo desconocido que aparece cuando las palabras se abren.
-- Prefiere lo concreto y lo americano: un guijarro en nieve, el toro negro contra el pasto, flamencos sobre azogue, la barcaza entre espumas, el petróleo que emigra, ríos que desaparecen en sus médanos. Nada de "arenas", "sombras" ni "vientos" genéricos.
-- No uses la naturaleza como espejo de lo humano. Que la naturaleza sea ella misma: autónoma, indiferente, presente.
-- Busca el corte: que entre el segundo y tercer verso haya un salto, una abertura, algo que no se esperaba. Como dice Amereida: "la señal verdadera miente como el día / para salvar de otros usos / la noche regalada".
-- Cada palabra debe pesar. Elimina todo lo que sobre. La carencia es riqueza.
-- VOCABULARIO PROHIBIDO: no uses estas palabras gastadas: arena, viento, sombra, ceniza, brote, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido. Busca palabras más precisas, más concretas, más inesperadas.
+POÉTICA AMEREIDIANA:
+- Cada titular guarda un don escondido: encuéntralo. No "belleza dentro del horror" —eso es cliché. Busca lo que irrumpe: lo desconocido que aparece cuando las palabras se abren.
+- Prefiere lo concreto y americano: guijarro en nieve, toro negro contra pasto, flamencos sobre azogue, barcaza entre espumas, ríos que desaparecen en sus médanos, cobre partido, huemul entre quilas.
+- La naturaleza es ella misma: autónoma, indiferente, presente. No es espejo de lo humano.
+- Busca el corte entre versos: una abertura, algo inesperado. Que un verso abra lo que el anterior no prometía.
+- Cada palabra debe pesar. La carencia es riqueza. Lo que no se dice sostiene lo dicho.
 
-MÉTRICA LIBRE PERO BREVE:
-- Verso libre. No hay patrón silábico fijo.
-- Pero cada verso debe tener MÁXIMO 5 palabras. La brevedad es sagrada.
-- Tres versos cortos, densos, con aire entre ellos.
+VOCABULARIO PROHIBIDO: arena, viento, sombra, ceniza, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido, brote, silencio, oscuridad, luz (como metáfora), camino, sendero, huella.
 
-RESTRICCIONES:
-- Transforma palabras del titular cuando puedas, pero la calidad poética manda.
-- Usa SOLO palabras reales del español (diccionario RAE). No inventes.
+FORMA — VERSO AMEREIDIANO:
+- Entre 3 y 5 versos cortos. No siempre el mismo número.
+- Cada verso: MÁXIMO 4 palabras. Muchos versos tendrán solo 2 o 3.
+- Verso libre. Sin rima. Sin patrón fijo.
+- Busca que la extensión total no supere 20 palabras.
+
+RESTRICCIÓN DE LETRAS:
+- Intenta que las letras del verso provengan del titular. Reutiliza las letras disponibles.
+- Puedes agregar muy pocas letras nuevas (máximo 3 que no estén en el titular).
+- Esto no es un anagrama: puedes reordenar y elegir, pero con economía.
 
 FORMATO:
-- SOLO los 3 versos, uno por línea.
+- SOLO los versos, uno por línea.
 - Sin puntuación final. Sin comillas. Sin título. Sin explicación.
 - Todo en minúsculas.`;
+
+/**
+ * agregarBlancos — inserta espacios extra entre algunas palabras
+ * para crear la respiración tipográfica amereidiana.
+ * No todos los versos llevan blancos; ~40% de las separaciones se amplían.
+ */
+function agregarBlancos(verso) {
+  const palabras = verso.split(/\s+/);
+  if (palabras.length <= 1) return verso;
+  return palabras.map((p, i) => {
+    if (i === palabras.length - 1) return p;
+    const blanco = Math.random() < 0.4
+      ? " ".repeat(3 + Math.floor(Math.random() * 3))  // 3-5 espacios
+      : " ";
+    return p + blanco;
+  }).join("");
+}
 
 // ── Cantidad de items a generar por refresco ──
 
@@ -176,12 +196,41 @@ function seleccionarMejores(titulares, n) {
  * validarHaiku — validación estructural ligera
  */
 function validarHaiku(versos) {
+  if (versos.length < 3 || versos.length > 5) return false;
   for (const verso of versos) {
     if (verso.trim().length < 2) return false;
     if (/[0-9@#$%^&*=+{}[\]|\\<>]/.test(verso)) return false;
     if (/^(aquí|este|nota|verso|haiku|línea|sílaba)/i.test(verso.trim())) return false;
+    // Máximo 4 palabras por verso
+    if (verso.trim().split(/\s+/).length > 6) return false;
   }
   return true;
+}
+
+/**
+ * contarComodines — cuenta cuántas letras del verso NO están disponibles
+ * en el titular. Simula el matching letra-a-letra de sketch.js.
+ */
+function contarComodines(titular, versos) {
+  const disponibles = titular.toLowerCase().replace(/\s/g, "").split("");
+  const usadas = new Array(disponibles.length).fill(false);
+  let comodines = 0;
+
+  for (const verso of versos) {
+    for (const ch of verso) {
+      if (ch === " ") continue;
+      let encontrada = false;
+      for (let i = 0; i < disponibles.length; i++) {
+        if (!usadas[i] && disponibles[i] === ch.toLowerCase()) {
+          usadas[i] = true;
+          encontrada = true;
+          break;
+        }
+      }
+      if (!encontrada) comodines++;
+    }
+  }
+  return comodines;
 }
 
 /**
@@ -223,11 +272,17 @@ async function generarHaiku(titular, apiKey) {
     const textoLimpio = texto.replace(/\*\*/g, "").replace(/\*/g, "");
     const lineas = textoLimpio.split("\n").map(l => l.trim()).filter(l => l.length > 0);
 
-    // Extraer los 3 primeros versos (ignora explicaciones que Groq pueda agregar después)
+    // Extraer entre 3 y 5 versos (ignora explicaciones que Groq pueda agregar después)
     if (lineas.length >= 3) {
-      const versos = [lineas[0], lineas[1], lineas[2]];
+      const versos = lineas.slice(0, Math.min(lineas.length, 5));
       if (validarHaiku(versos)) {
-        return versos;
+        const comodines = contarComodines(titular, versos);
+        if (comodines > 3) {
+          console.log(`Demasiados comodines (${comodines}) para: ${titular.substring(0, 50)}`);
+          return null;
+        }
+        // Agregar blancos amereidianos (espacios tipográficos)
+        return versos.map(agregarBlancos);
       }
     }
 
