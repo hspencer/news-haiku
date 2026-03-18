@@ -6,7 +6,7 @@
  * y almacena los pares {titular, versos} en Netlify Blobs.
  * El cliente consume este caché vía cache.mjs sin tocar la API de Groq.
  *
- * Se ejecuta automáticamente con cron "0 *6 * * *" (cada 6h).
+ * Se ejecuta automáticamente con cron cada 6h.
  * También se puede invocar manualmente via POST /.netlify/functions/refresh
  */
 
@@ -25,25 +25,42 @@ const FEEDS = [
   "https://feeds.bbci.co.uk/mundo/temas/ciencia/rss.xml"
 ];
 
-// Palabras que indican titulares con sustancia poética (conflicto, naturaleza, descubrimiento, lo humano)
+// Palabras que indican titulares con sustancia poética.
+// Organizadas desde las preocupaciones de Amereida: mar y travesía,
+// territorio americano, lo desconocido que irrumpe, cielo y orientación,
+// cuerpo y lengua, materia concreta, lo vivo, origen y herencia.
 const PALABRAS_POETICAS = [
-  // conflicto y drama humano
-  "guerra", "muerte", "muertos", "crisis", "refugiados", "éxodo",
-  "hambre", "sequía", "naufragio", "frontera", "exilio", "migración",
-  // naturaleza y territorio
-  "terremoto", "inundación", "incendio", "volcán", "erupción", "glaciar",
-  "huracán", "tornado", "tsunami", "océano", "selva", "desierto",
-  "río", "montaña", "isla", "bosque", "costa", "pampa",
-  // ciencia y descubrimiento
-  "descubren", "hallazgo", "fósil", "especie", "extinción", "genoma",
-  "asteroide", "satélite", "telescopio", "órbita", "partícula", "átomo",
-  "expedición", "excavación", "antigua", "milenario", "ancestral",
-  // lo humano y cultural
-  "lengua", "idioma", "pueblo", "comunidad", "ritual", "ceremonia",
-  "ruinas", "templo", "tumba", "manuscrito", "pintura", "museo",
-  // elementos concretos
-  "agua", "fuego", "tierra", "piedra", "hierro", "sal", "hueso",
-  "sangre", "semilla", "raíz", "fruto", "piel", "cuerpo"
+  // mar y travesía — el mar interior, la navegación, el paso
+  "mar", "océano", "archipiélago", "isla", "puerto", "barco", "naufragio",
+  "estrecho", "cabo", "navegación", "marejada", "oleaje", "deriva",
+  // territorio americano — el continente como regalo
+  "río", "selva", "cordillera", "volcán", "glaciar", "desierto",
+  "pampa", "montaña", "bosque", "estepa", "altiplano", "cuenca",
+  "amazonas", "valle", "patagonia", "quebrada", "caribe",
+  // travesía y movimiento — cruzar, no conquistar
+  "frontera", "transumante", "éxodo", "refugiados", "exilio",
+  "expedición", "ruta", "travesía", "caravana", "peregrinación",
+  // lo desconocido que irrumpe — hallazgo, no descubrimiento
+  "descubren", "hallazgo", "desconocido", "misterio", "enigma",
+  "secreto", "revela", "inédito", "insólito", "inesperado",
+  // cielo y estrellas — la cruz del sur, orientarse
+  "estrella", "constelación", "satélite", "telescopio", "asteroide",
+  "órbita", "eclipse", "cometa", "galaxia", "luna",
+  // cuerpo y lengua — lo humano concreto
+  "cuerpo", "sangre", "hueso", "piel", "lengua", "idioma",
+  "pueblo", "comunidad", "voz", "habla", "gesto",
+  // tierra y materia — lo concreto pesa
+  "tierra", "piedra", "agua", "fuego", "hierro", "sal",
+  "petróleo", "cobre", "carbón", "barro", "ceniza",
+  // lo vivo — la naturaleza es ella misma
+  "especie", "fósil", "árbol", "semilla", "ballena", "cuerpo",
+  "bosque", "coral", "raíz", "floración", "cardumen",
+  // origen y herencia — ruinas, lo que permanece
+  "cuchitril", "templo", "tumba", "ancestral", "milenario",
+  "manuscrito", "excavación", "antigua", "interior",
+  // la herida y el don — conflicto que desvela
+  "guerra", "muerte", "crisis", "hambre", "sequía",
+  "terremoto", "inundación", "incendio", "erupción", "colapso"
 ];
 
 // ── Groq ──
@@ -61,9 +78,9 @@ POÉTICA:
 - Cada palabra debe pesar. Elimina todo lo que sobre. La carencia es riqueza.
 - VOCABULARIO PROHIBIDO: no uses estas palabras gastadas: arena, viento, sombra, ceniza, brote, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido. Busca palabras más precisas, más concretas, más inesperadas.
 
-MÉTRICA ESTRICTA:
-- Exactamente 3 versos: 5 sílabas / 7 sílabas / 5 sílabas (conteo silábico español).
-- Cuenta con cuidado los diptongos (cie-lo = 2 sílabas) y los hiatos (rí-o = 2 sílabas).
+MÉTRICA LIBRE:
+- Verso libre, con blancos intermedios que se leen como silencios
+- Cuenta con cuidado los diptongos (cie-lo = 2 sílabas) y los hiatos (rí-o = 2 sílabas) para que los versos sean musicales.
 
 RESTRICCIONES:
 - Transforma palabras del titular cuando puedas, pero la calidad poética manda.
