@@ -78,9 +78,10 @@ POÉTICA:
 - Cada palabra debe pesar. Elimina todo lo que sobre. La carencia es riqueza.
 - VOCABULARIO PROHIBIDO: no uses estas palabras gastadas: arena, viento, sombra, ceniza, brote, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido. Busca palabras más precisas, más concretas, más inesperadas.
 
-MÉTRICA LIBRE:
-- Verso libre, con blancos intermedios que se leen como silencios
-- Cuenta con cuidado los diptongos (cie-lo = 2 sílabas) y los hiatos (rí-o = 2 sílabas) para que los versos sean musicales.
+MÉTRICA LIBRE PERO BREVE:
+- Verso libre. No hay patrón silábico fijo.
+- Pero cada verso debe tener MÁXIMO 5 palabras. La brevedad es sagrada.
+- Tres versos cortos, densos, con aire entre ellos.
 
 RESTRICCIONES:
 - Transforma palabras del titular cuando puedas, pero la calidad poética manda.
