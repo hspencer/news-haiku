@@ -38,9 +38,10 @@ POÉTICA:
 - Cada palabra debe pesar. Elimina todo lo que sobre. La carencia es riqueza.
 - VOCABULARIO PROHIBIDO: no uses estas palabras gastadas: arena, viento, sombra, ceniza, brote, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido. Busca palabras más precisas, más concretas, más inesperadas.
 
-MÉTRICA ESTRICTA:
-- Exactamente 3 versos: 5 sílabas / 7 sílabas / 5 sílabas (conteo silábico español).
-- Cuenta con cuidado los diptongos (cie-lo = 2 sílabas) y los hiatos (rí-o = 2 sílabas).
+MÉTRICA:
+- Exactamente 3 versos BREVES: entre 3 y 8 sílabas cada uno. Máximo 5 palabras por verso.
+- Cuenta diptongos (cie-lo = 2) e hiatos (rí-o = 2) con cuidado.
+- La brevedad es sagrada. Si un verso tiene más de 5 palabras, está mal.
 
 RESTRICCIONES:
 - Transforma palabras del titular cuando puedas, pero la calidad poética manda.

@@ -41,26 +41,26 @@ const PALABRAS_POETICAS = [
   "frontera", "transumante", "éxodo", "refugiados", "exilio",
   "expedición", "ruta", "travesía", "caravana", "peregrinación",
   // lo desconocido que irrumpe — hallazgo, no descubrimiento
-  "descubren", "hallazgo", "desconocido", "misterio", "enigma",
-  "secreto", "revela", "inédito", "insólito", "inesperado",
+  "descubren", "hallazgo", "desconocido", "misterio", "enigma", "aventura",
+  "secreto", "revela", "inédito", "nóvel", "inesperado",
   // cielo y estrellas — la cruz del sur, orientarse
-  "estrella", "constelación", "satélite", "telescopio", "asteroide",
-  "órbita", "eclipse", "cometa", "galaxia", "luna",
+  "estrella", "constelación", "satélite", "telescopio", "elíptica",
+  "órbita", "eclipse", "cometa", "galaxia", "luna", "cuásar", "nave",
   // cuerpo y lengua — lo humano concreto
-  "cuerpo", "sangre", "hueso", "piel", "lengua", "idioma",
-  "pueblo", "comunidad", "voz", "habla", "gesto",
+  "cuerpo", "sangre", "hueso", "nosotros", "lengua", "palabra",
+  "pueblo", "escuela", "voz", "habla", "gesto", "gira",
   // tierra y materia — lo concreto pesa
-  "tierra", "piedra", "agua", "fuego", "hierro", "sal",
-  "petróleo", "cobre", "carbón", "barro", "ceniza",
+  "tierra", "piedra", "agua", "fuego", "hierro", "sal", "suelo", "arenas",
+  "riquezas", "metales", "hojarazca", "barro", "ceniza",
   // lo vivo — la naturaleza es ella misma
-  "especie", "fósil", "árbol", "semilla", "ballena", "cuerpo",
-  "bosque", "coral", "raíz", "floración", "cardumen",
+  "especie", "lengua", "árbol", "brotación", "ballena", "cuerpo",
+  "selva", "pelágico", "raíz", "floración", "bandada",
   // origen y herencia — ruinas, lo que permanece
-  "cuchitril", "templo", "tumba", "ancestral", "milenario",
-  "manuscrito", "excavación", "antigua", "interior",
+  "cuchitril", "templo", "dibujo", "letra", "cifra",
+  "manuscrito", "excavación", "croquis", "interior",
   // la herida y el don — conflicto que desvela
-  "guerra", "muerte", "crisis", "hambre", "sequía",
-  "terremoto", "inundación", "incendio", "erupción", "colapso"
+  "épica", "muerte", "abertura", "hambre", "desnudo",
+  "telúrico", "inundación", "incendio", "acontecer", "perpetuo"
 ];
 
 // ── Groq ──
