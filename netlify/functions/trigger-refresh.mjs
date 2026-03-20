@@ -1,9 +1,11 @@
 /**
- * trigger-refresh.mjs — Invoca el refresh manualmente via HTTP
+ * trigger-refresh.mjs — Regenerar caché de versos amereidianos via HTTP
  *
- * GET o POST a /.netlify/functions/trigger-refresh
- * Ejecuta la misma lógica que refresh.mjs (scheduled)
- * pero como función HTTP normal, invocable desde el navegador.
+ * GET /.netlify/functions/trigger-refresh         → genera 6 versos nuevos (acumula en pool)
+ * GET /.netlify/functions/trigger-refresh?full=1   → BORRA caché y genera 24 versos nuevos
+ *
+ * Usa la misma lógica de refresh.mjs pero como función HTTP invocable desde el navegador.
+ * Configurada con timeout extendido (120s) para el modo full.
  */
 
 import { getStore } from "@netlify/blobs";
@@ -14,70 +16,65 @@ const FEEDS = [
   "https://feeds.bbci.co.uk/mundo/rss.xml",
   "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/internacional/portada",
   "https://rss.dw.com/xml/rss-sp-all",
-  "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/ciencia/portada",
-  "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/cultura/portada",
-  "https://feeds.bbci.co.uk/mundo/temas/ciencia/rss.xml"
+  "https://feeds.bbci.co.uk/news/world/rss.xml",
+  "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/america/portada"
 ];
 
-const PALABRAS_POETICAS = [
-  "mar", "océano", "archipiélago", "isla", "puerto", "barco", "naufragio",
-  "estrecho", "cabo", "navegación", "marejada", "oleaje", "deriva",
-  "río", "selva", "cordillera", "volcán", "glaciar", "desierto",
-  "pampa", "montaña", "bosque", "estepa", "altiplano", "cuenca",
-  "amazonas", "valle", "patagonia", "quebrada", "caribe",
-  "frontera", "transumante", "éxodo", "refugiados", "exilio",
-  "expedición", "ruta", "travesía", "caravana", "peregrinación",
-  "descubren", "hallazgo", "desconocido", "misterio", "enigma", "aventura",
-  "secreto", "revela", "inédito", "nóvel", "inesperado",
-  "estrella", "constelación", "satélite", "telescopio", "elíptica",
-  "órbita", "eclipse", "cometa", "galaxia", "luna", "cuásar", "nave",
-  "cuerpo", "sangre", "hueso", "nosotros", "lengua", "palabra",
-  "pueblo", "escuela", "voz", "habla", "gesto", "gira",
-  "tierra", "piedra", "agua", "fuego", "hierro", "sal", "suelo", "arenas",
-  "riquezas", "metales", "hojarazca", "barro", "ceniza",
-  "especie", "lengua", "árbol", "brotación", "ballena", "cuerpo",
-  "selva", "pelágico", "raíz", "floración", "bandada",
-  "cuchitril", "templo", "dibujo", "letra", "cifra",
-  "manuscrito", "excavación", "croquis", "interior",
-  "épica", "muerte", "abertura", "hambre", "desnudo",
-  "telúrico", "inundación", "incendio", "acontecer", "perpetuo"
+const PALABRAS_FILTRO = [
+  "guerra", "ataque", "bombardeo", "misil", "nuclear", "militar",
+  "combate", "ofensiva", "defensa", "armas", "tropas", "ejército",
+  "conflicto", "tensión", "amenaza", "represalia", "escalada",
+  "irán", "iran", "eeuu", "trump", "teherán", "tehran", "ormuz",
+  "golfo", "pérsico", "sanciones", "embargo", "petróleo", "crudo",
+  "estrecho", "hormuz", "oriente", "medio", "siria", "irak", "yemen",
+  "hezbolá", "hezbollah", "hamás", "hamas", "gaza", "israel",
+  "crisis", "emergencia", "refugiados", "éxodo", "desplazados",
+  "muerte", "muertos", "víctimas", "civil", "civiles", "humanitaria",
+  "energía", "gas", "oleoducto", "opep", "barril", "precio",
+  "suministro", "bloqueo", "ruta", "marítima", "buque", "tanquero",
+  "negociación", "acuerdo", "tratado", "otan", "onu", "consejo",
+  "seguridad", "alianza", "coalición", "veto", "diplomacia"
 ];
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const LLM_MODEL = "llama-3.3-70b-versatile";
-const ITEMS_POR_REFRESH = 6;
 const MAX_POOL = 24;
 
-// Importar el mismo prompt desde refresh.mjs no es posible en Netlify Functions,
-// así que lo duplicamos aquí
-const SYSTEM_PROMPT = `Eres una voz poética americana. Tu arte: recibir un titular de noticias y cruzarlo —travesía— hasta desvelar lo que en él se regala sin ser visto. No consolar. No moralizar. Desvelar.
+const SYSTEM_PROMPT = `Eres un poeta. Escribes versos breves en español, con la voz de Amereida: el poema épico de América que no se funda en la conquista sino en el regalo, la travesía y la abertura.
+
+TU TAREA:
+Recibes un titular de noticias. Ignora su contenido. Solo te interesa como reserva de letras.
+Escribe un poema breve que NO tenga relación con la noticia. El poema es tuyo, libre, amereidiano.
 
 POÉTICA:
-- Cada titular guarda un don escondido: encuéntralo. No busques belleza "dentro del horror" —eso es un cliché. Busca lo que irrumpe: lo desconocido que aparece cuando las palabras se abren.
-- Prefiere lo concreto y lo americano: un guijarro en nieve, el toro negro contra el pasto, flamencos sobre azogue, la barcaza entre espumas, el petróleo que emigra, ríos que desaparecen en sus médanos. Nada de "arenas", "sombras" ni "vientos" genéricos.
-- No uses la naturaleza como espejo de lo humano. Que la naturaleza sea ella misma: autónoma, indiferente, presente.
-- Busca el corte: que entre el segundo y tercer verso haya un salto, una abertura, algo que no se esperaba. Como dice Amereida: "la señal verdadera miente como el día / para salvar de otros usos / la noche regalada".
-- Cada palabra debe pesar. Elimina todo lo que sobre. La carencia es riqueza.
-- VOCABULARIO PROHIBIDO: no uses estas palabras gastadas: arena, viento, sombra, ceniza, brote, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido. Busca palabras más precisas, más concretas, más inesperadas.
+- Lo concreto pesa más que lo abstracto. Un huemul entre quilas, cobre partido, barcaza en espuma, flamencos sobre azogue, greda rota junto al río.
+- La naturaleza no es metáfora de nada. Es ella misma.
+- El corte entre versos abre: que un verso lleve a donde el anterior no prometía.
+- Cada palabra debe justificar su presencia. Preferir la carencia.
 
-MÉTRICA LIBRE PERO BREVE:
-- Verso libre. No hay patrón silábico fijo.
-- Pero cada verso debe tener MÁXIMO 5 palabras. La brevedad es sagrada.
-- Tres versos cortos, densos, con aire entre ellos.
+VOCABULARIO PROHIBIDO (nunca usar estas palabras):
+arena, viento, sombra, ceniza, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido, brote, silencio, oscuridad, camino, sendero, huella, tiempo, eterno, infinito, destino, sueño, abismo.
 
-RESTRICCIONES:
-- Transforma palabras del titular cuando puedas, pero la calidad poética manda.
-- Usa SOLO palabras reales del español (diccionario RAE). No inventes.
+FORMA:
+- Exactamente 3 versos.
+- Cada verso tiene entre 3 y 7 palabras. Los versos deben ser oraciones o frases con sentido sintáctico completo o parcial (sujeto-verbo, verbo-complemento, frase nominal con adjetivo, etc.). NO escribir palabras sueltas.
+- La extensión total: entre 12 y 18 palabras.
+- Verso libre, sin rima, sin métrica fija.
 
-FORMATO:
-- SOLO los 3 versos, uno por línea.
-- Sin puntuación final. Sin comillas. Sin título. Sin explicación.
+RESTRICCIÓN DE LETRAS:
+- Las letras de tu poema deben provenir del titular recibido. Reutiliza las letras disponibles.
+- Puedes agregar como máximo 3 letras que no estén en el titular.
+- NO es un anagrama. Puedes elegir y reordenar, pero con economía.
+
+FORMATO DE RESPUESTA:
+- SOLO 3 versos, uno por línea.
+- Sin puntuación. Sin comillas. Sin título. Sin explicación. Sin numeración.
 - Todo en minúsculas.`;
 
 function puntuarTitular(titular) {
   const t = titular.toLowerCase();
   let puntaje = 0;
-  for (const palabra of PALABRAS_POETICAS) {
+  for (const palabra of PALABRAS_FILTRO) {
     if (t.includes(palabra)) puntaje++;
   }
   puntaje += Math.min(t.split(" ").length / 10, 1);
@@ -122,16 +119,50 @@ function seleccionarMejores(titulares, n) {
   return seleccionados;
 }
 
-function validarHaiku(versos) {
+function limpiarVerso(verso) {
+  return verso.trim()
+    .replace(/[.,;:!?¡¿"""''—–\-]/g, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function validarVerso(versos) {
+  if (versos.length !== 3) return false;
   for (const verso of versos) {
-    if (verso.trim().length < 2) return false;
-    if (/[0-9@#$%^&*=+{}[\]|\\<>]/.test(verso)) return false;
-    if (/^(aquí|este|nota|verso|haiku|línea|sílaba)/i.test(verso.trim())) return false;
+    const limpio = verso.trim();
+    if (limpio.length < 5) return false;
+    if (/[0-9@#$%^&*=+{}[\]|\\<>]/.test(limpio)) return false;
+    if (/^(aquí|este|nota|verso|haiku|línea|sílaba|poema)/i.test(limpio)) return false;
+    const palabras = limpio.split(/\s+/).length;
+    if (palabras < 3 || palabras > 7) return false;
   }
+  const totalPalabras = versos.reduce((s, v) => s + v.trim().split(/\s+/).length, 0);
+  if (totalPalabras < 10 || totalPalabras > 20) return false;
   return true;
 }
 
-async function generarHaiku(titular, apiKey) {
+function contarComodines(titular, versos) {
+  const disponibles = titular.toLowerCase().replace(/\s/g, "").split("");
+  const usadas = new Array(disponibles.length).fill(false);
+  let comodines = 0;
+  for (const verso of versos) {
+    for (const ch of verso) {
+      if (ch === " ") continue;
+      let encontrada = false;
+      for (let i = 0; i < disponibles.length; i++) {
+        if (!usadas[i] && disponibles[i] === ch.toLowerCase()) {
+          usadas[i] = true;
+          encontrada = true;
+          break;
+        }
+      }
+      if (!encontrada) comodines++;
+    }
+  }
+  return comodines;
+}
+
+async function generarVerso(titular, apiKey) {
   try {
     const resp = await fetch(GROQ_API_URL, {
       method: "POST",
@@ -155,8 +186,15 @@ async function generarHaiku(titular, apiKey) {
     const textoLimpio = texto.replace(/\*\*/g, "").replace(/\*/g, "");
     const lineas = textoLimpio.split("\n").map(l => l.trim()).filter(l => l.length > 0);
     if (lineas.length >= 3) {
-      const versos = [lineas[0], lineas[1], lineas[2]];
-      if (validarHaiku(versos)) return versos;
+      const versos = lineas.slice(0, 3);
+      if (validarVerso(versos)) {
+        const comodines = contarComodines(titular, versos);
+        if (comodines > 3) {
+          console.log(`Comodines: ${comodines} — descartado`);
+          return null;
+        }
+        return versos.map(limpiarVerso);
+      }
     }
     return null;
   } catch (e) {
@@ -172,6 +210,13 @@ export default async (req) => {
     });
   }
 
+  const url = new URL(req.url);
+  const full = url.searchParams.get("full") === "1";
+  const cantidad = full ? MAX_POOL : 6;
+
+  console.log(`Regenerando ${cantidad} versos (modo ${full ? "FULL" : "parcial"})...`);
+
+  // Obtener titulares
   const titulares = await obtenerTitulares();
   if (titulares.length === 0) {
     return new Response(JSON.stringify({ error: "Sin titulares" }), {
@@ -179,27 +224,46 @@ export default async (req) => {
     });
   }
 
-  const mejores = seleccionarMejores(titulares, ITEMS_POR_REFRESH);
+  console.log(`${titulares.length} titulares obtenidos`);
+
+  // Seleccionar los mejores (pedir más de los necesarios por si fallan validaciones)
+  const mejores = seleccionarMejores(titulares, Math.min(cantidad + 10, titulares.length));
   const items = [];
 
   for (const titular of mejores) {
-    const versos = await generarHaiku(titular, apiKey);
-    if (versos) items.push({ titular, versos });
-    await new Promise(r => setTimeout(r, 800));
+    if (items.length >= cantidad) break;
+    const versos = await generarVerso(titular, apiKey);
+    if (versos) {
+      items.push({ titular, versos });
+      console.log(`[${items.length}/${cantidad}] OK: "${titular.substring(0, 40)}..."`);
+    } else {
+      console.log(`SKIP: "${titular.substring(0, 40)}..."`);
+    }
+    await new Promise(r => setTimeout(r, 500));
   }
 
-  // Pool rotativo: agregar nuevos al inicio, mantener máximo MAX_POOL
-  const store = getStore("haiku-cache");
-  let poolAnterior = [];
-  try {
-    const raw = await store.get("current");
-    if (raw) {
-      const anterior = JSON.parse(raw);
-      poolAnterior = anterior.items || [];
-    }
-  } catch (e) {}
+  console.log(`Generados: ${items.length}/${cantidad}`);
 
-  const pool = [...items, ...poolAnterior].slice(0, MAX_POOL);
+  // Guardar en caché
+  const store = getStore("haiku-cache");
+
+  let pool;
+  if (full) {
+    // Modo full: reemplazar toda la caché
+    pool = items;
+  } else {
+    // Modo parcial: acumular
+    let poolAnterior = [];
+    try {
+      const raw = await store.get("current");
+      if (raw) {
+        const anterior = JSON.parse(raw);
+        poolAnterior = anterior.items || [];
+      }
+    } catch (e) {}
+    pool = [...items, ...poolAnterior].slice(0, MAX_POOL);
+  }
+
   const cacheData = {
     items: pool,
     refreshedAt: Date.now(),
@@ -213,10 +277,16 @@ export default async (req) => {
 
   return new Response(JSON.stringify({
     ok: true,
+    modo: full ? "full" : "parcial",
     nuevos: items.length,
     enPool: pool.length,
     refreshedAt: cacheData.refreshedAtISO
   }), {
     headers: { "Content-Type": "application/json" }
   });
+};
+
+// Timeout extendido: 120 segundos para poder generar los 24 versos en modo full
+export const config = {
+  path: "/.netlify/functions/trigger-refresh"
 };

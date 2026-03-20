@@ -1,13 +1,13 @@
 /**
  * refresh.mjs — Función scheduled de Netlify (cada 6 horas)
  *
- * Busca titulares con interés poético vía RSS (noticias, ciencia, cultura),
- * genera haikus con Groq/Llama usando una voz amereidiana,
+ * Busca titulares internacionales de crisis y conflicto vía RSS,
+ * genera versos amereidianos con Groq/Llama (poemas independientes
+ * de la noticia, que usan las letras del titular como materia prima),
  * y almacena los pares {titular, versos} en Netlify Blobs.
- * El cliente consume este caché vía cache.mjs sin tocar la API de Groq.
  *
- * Se ejecuta automáticamente con cron cada 6h.
- * También se puede invocar manualmente via POST /.netlify/functions/refresh
+ * Se ejecuta con cron cada 6h.
+ * También se puede invocar manualmente via GET /.netlify/functions/trigger-refresh
  */
 
 import { getStore } from "@netlify/blobs";
@@ -20,47 +20,31 @@ const FEEDS = [
   "https://feeds.bbci.co.uk/mundo/rss.xml",
   "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/internacional/portada",
   "https://rss.dw.com/xml/rss-sp-all",
-  "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/ciencia/portada",
-  "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/cultura/portada",
-  "https://feeds.bbci.co.uk/mundo/temas/ciencia/rss.xml"
+  "https://feeds.bbci.co.uk/news/world/rss.xml",
+  "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/america/portada"
 ];
 
-// Palabras que indican titulares con sustancia poética.
-// Organizadas desde las preocupaciones de Amereida: mar y travesía,
-// territorio americano, lo desconocido que irrumpe, cielo y orientación,
-// cuerpo y lengua, materia concreta, lo vivo, origen y herencia.
-const PALABRAS_POETICAS = [
-  // mar y travesía — el mar interior, la navegación, el paso
-  "mar", "océano", "archipiélago", "isla", "puerto", "barco", "naufragio",
-  "estrecho", "cabo", "navegación", "marejada", "oleaje", "deriva",
-  // territorio americano — el continente como regalo
-  "río", "selva", "cordillera", "volcán", "glaciar", "desierto",
-  "pampa", "montaña", "bosque", "estepa", "altiplano", "cuenca",
-  "amazonas", "valle", "patagonia", "quebrada", "caribe",
-  // travesía y movimiento — cruzar, no conquistar
-  "frontera", "transumante", "éxodo", "refugiados", "exilio",
-  "expedición", "ruta", "travesía", "caravana", "peregrinación",
-  // lo desconocido que irrumpe — hallazgo, no descubrimiento
-  "descubren", "hallazgo", "desconocido", "misterio", "enigma", "aventura",
-  "secreto", "revela", "inédito", "nóvel", "inesperado",
-  // cielo y estrellas — la cruz del sur, orientarse
-  "estrella", "constelación", "satélite", "telescopio", "elíptica",
-  "órbita", "eclipse", "cometa", "galaxia", "luna", "cuásar", "nave",
-  // cuerpo y lengua — lo humano concreto
-  "cuerpo", "sangre", "hueso", "nosotros", "lengua", "palabra",
-  "pueblo", "escuela", "voz", "habla", "gesto", "gira",
-  // tierra y materia — lo concreto pesa
-  "tierra", "piedra", "agua", "fuego", "hierro", "sal", "suelo", "arenas",
-  "riquezas", "metales", "hojarazca", "barro", "ceniza",
-  // lo vivo — la naturaleza es ella misma
-  "especie", "lengua", "árbol", "brotación", "ballena", "cuerpo",
-  "selva", "pelágico", "raíz", "floración", "bandada",
-  // origen y herencia — ruinas, lo que permanece
-  "cuchitril", "templo", "dibujo", "letra", "cifra",
-  "manuscrito", "excavación", "croquis", "interior",
-  // la herida y el don — conflicto que desvela
-  "épica", "muerte", "abertura", "hambre", "desnudo",
-  "telúrico", "inundación", "incendio", "acontecer", "perpetuo"
+// Palabras para filtrar titulares de crisis, conflicto y geopolítica.
+// El titular es solo materia prima tipográfica — las letras del poema.
+const PALABRAS_FILTRO = [
+  // conflicto y guerra
+  "guerra", "ataque", "bombardeo", "misil", "nuclear", "militar",
+  "combate", "ofensiva", "defensa", "armas", "tropas", "ejército",
+  "conflicto", "tensión", "amenaza", "represalia", "escalada",
+  // geopolítica EEUU-Irán y Medio Oriente
+  "irán", "iran", "eeuu", "trump", "teherán", "tehran", "ormuz",
+  "golfo", "pérsico", "sanciones", "embargo", "petróleo", "crudo",
+  "estrecho", "hormuz", "oriente", "medio", "siria", "irak", "yemen",
+  "hezbolá", "hezbollah", "hamás", "hamas", "gaza", "israel",
+  // crisis y emergencia
+  "crisis", "emergencia", "refugiados", "éxodo", "desplazados",
+  "muerte", "muertos", "víctimas", "civil", "civiles", "humanitaria",
+  // energía y recursos
+  "energía", "gas", "oleoducto", "opep", "barril", "precio",
+  "suministro", "bloqueo", "ruta", "marítima", "buque", "tanquero",
+  // diplomacia y poder
+  "negociación", "acuerdo", "tratado", "otan", "onu", "consejo",
+  "seguridad", "alianza", "coalición", "veto", "diplomacia"
 ];
 
 // ── Groq ──
@@ -68,48 +52,45 @@ const PALABRAS_POETICAS = [
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const LLM_MODEL = "llama-3.3-70b-versatile";
 
-const SYSTEM_PROMPT = `Eres una voz poética americana, heredera de Amereida. Tu arte: recibir un titular de noticias y cruzarlo —travesía— hasta desvelar lo que en él se regala sin ser visto. No consolar. No moralizar. No embellecer. Abrir.
+const SYSTEM_PROMPT = `Eres un poeta. Escribes versos breves en español, con la voz de Amereida: el poema épico de América que no se funda en la conquista sino en el regalo, la travesía y la abertura.
 
-POÉTICA AMEREIDIANA:
-- Cada titular guarda un don escondido: encuéntralo. No "belleza dentro del horror" —eso es cliché. Busca lo que irrumpe: lo desconocido que aparece cuando las palabras se abren.
-- Prefiere lo concreto y americano: guijarro en nieve, toro negro contra pasto, flamencos sobre azogue, barcaza entre espumas, ríos que desaparecen en sus médanos, cobre partido, huemul entre quilas.
-- La naturaleza es ella misma: autónoma, indiferente, presente. No es espejo de lo humano.
-- Busca el corte entre versos: una abertura, algo inesperado. Que un verso abra lo que el anterior no prometía.
-- Cada palabra debe pesar. La carencia es riqueza. Lo que no se dice sostiene lo dicho.
+TU TAREA:
+Recibes un titular de noticias. Ignora su contenido. Solo te interesa como reserva de letras.
+Escribe un poema breve que NO tenga relación con la noticia. El poema es tuyo, libre, amereidiano.
 
-VOCABULARIO PROHIBIDO: arena, viento, sombra, ceniza, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido, brote, silencio, oscuridad, luz (como metáfora), camino, sendero, huella.
+POÉTICA:
+- Lo concreto pesa más que lo abstracto. Un huemul entre quilas, cobre partido, barcaza en espuma, flamencos sobre azogue, greda rota junto al río.
+- La naturaleza no es metáfora de nada. Es ella misma.
+- El corte entre versos abre: que un verso lleve a donde el anterior no prometía.
+- Cada palabra debe justificar su presencia. Preferir la carencia.
 
-FORMA — VERSO AMEREIDIANO:
-- Entre 3 y 5 versos cortos. No siempre el mismo número.
-- Cada verso: MÁXIMO 4 palabras. Muchos versos tendrán solo 2 o 3.
-- Verso libre. Sin rima. Sin patrón fijo.
-- Busca que la extensión total no supere 20 palabras.
+VOCABULARIO PROHIBIDO (nunca usar estas palabras):
+arena, viento, sombra, ceniza, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido, brote, silencio, oscuridad, camino, sendero, huella, tiempo, eterno, infinito, destino, sueño, abismo.
+
+FORMA:
+- Exactamente 3 versos.
+- Cada verso tiene entre 3 y 7 palabras. Los versos deben ser oraciones o frases con sentido sintáctico completo o parcial (sujeto-verbo, verbo-complemento, frase nominal con adjetivo, etc.). NO escribir palabras sueltas.
+- La extensión total: entre 12 y 18 palabras.
+- Verso libre, sin rima, sin métrica fija.
 
 RESTRICCIÓN DE LETRAS:
-- Intenta que las letras del verso provengan del titular. Reutiliza las letras disponibles.
-- Puedes agregar muy pocas letras nuevas (máximo 3 que no estén en el titular).
-- Esto no es un anagrama: puedes reordenar y elegir, pero con economía.
+- Las letras de tu poema deben provenir del titular recibido. Reutiliza las letras disponibles.
+- Puedes agregar como máximo 3 letras que no estén en el titular.
+- NO es un anagrama. Puedes elegir y reordenar, pero con economía.
 
-FORMATO:
-- SOLO los versos, uno por línea.
-- Sin puntuación final. Sin comillas. Sin título. Sin explicación.
+FORMATO DE RESPUESTA:
+- SOLO 3 versos, uno por línea.
+- Sin puntuación. Sin comillas. Sin título. Sin explicación. Sin numeración.
 - Todo en minúsculas.`;
 
 /**
- * agregarBlancos — inserta espacios extra entre algunas palabras
- * para crear la respiración tipográfica amereidiana.
- * No todos los versos llevan blancos; ~40% de las separaciones se amplían.
+ * limpiarVerso — normaliza espacios y elimina puntuación residual
  */
-function agregarBlancos(verso) {
-  const palabras = verso.split(/\s+/);
-  if (palabras.length <= 1) return verso;
-  return palabras.map((p, i) => {
-    if (i === palabras.length - 1) return p;
-    const blanco = Math.random() < 0.4
-      ? " ".repeat(3 + Math.floor(Math.random() * 3))  // 3-5 espacios
-      : " ";
-    return p + blanco;
-  }).join("");
+function limpiarVerso(verso) {
+  return verso.trim()
+    .replace(/[.,;:!?¡¿"""''—–\-]/g, "")  // quitar puntuación
+    .replace(/\s+/g, " ")                    // normalizar espacios
+    .toLowerCase();
 }
 
 // ── Cantidad de items a generar por refresco ──
@@ -127,7 +108,7 @@ const MAX_POOL = 24;
 function puntuarTitular(titular) {
   const t = titular.toLowerCase();
   let puntaje = 0;
-  for (const palabra of PALABRAS_POETICAS) {
+  for (const palabra of PALABRAS_FILTRO) {
     if (t.includes(palabra)) puntaje++;
   }
   // Bonus por largo (titulares más largos suelen tener más contenido concreto)
@@ -193,17 +174,21 @@ function seleccionarMejores(titulares, n) {
 }
 
 /**
- * validarHaiku — validación estructural ligera
+ * validarVerso — validación estructural: 3 versos, 3-7 palabras c/u
  */
-function validarHaiku(versos) {
-  if (versos.length < 3 || versos.length > 5) return false;
+function validarVerso(versos) {
+  if (versos.length !== 3) return false;
   for (const verso of versos) {
-    if (verso.trim().length < 2) return false;
-    if (/[0-9@#$%^&*=+{}[\]|\\<>]/.test(verso)) return false;
-    if (/^(aquí|este|nota|verso|haiku|línea|sílaba)/i.test(verso.trim())) return false;
-    // Máximo 4 palabras por verso
-    if (verso.trim().split(/\s+/).length > 6) return false;
+    const limpio = verso.trim();
+    if (limpio.length < 5) return false;
+    if (/[0-9@#$%^&*=+{}[\]|\\<>]/.test(limpio)) return false;
+    if (/^(aquí|este|nota|verso|haiku|línea|sílaba|poema)/i.test(limpio)) return false;
+    const palabras = limpio.split(/\s+/).length;
+    if (palabras < 3 || palabras > 7) return false;
   }
+  // Total de palabras entre 12 y 18
+  const totalPalabras = versos.reduce((s, v) => s + v.trim().split(/\s+/).length, 0);
+  if (totalPalabras < 10 || totalPalabras > 20) return false;
   return true;
 }
 
@@ -272,17 +257,16 @@ async function generarHaiku(titular, apiKey) {
     const textoLimpio = texto.replace(/\*\*/g, "").replace(/\*/g, "");
     const lineas = textoLimpio.split("\n").map(l => l.trim()).filter(l => l.length > 0);
 
-    // Extraer entre 3 y 5 versos (ignora explicaciones que Groq pueda agregar después)
+    // Extraer exactamente 3 versos (ignora explicaciones que Groq pueda agregar después)
     if (lineas.length >= 3) {
-      const versos = lineas.slice(0, Math.min(lineas.length, 5));
-      if (validarHaiku(versos)) {
+      const versos = lineas.slice(0, 3);
+      if (validarVerso(versos)) {
         const comodines = contarComodines(titular, versos);
         if (comodines > 3) {
           console.log(`Demasiados comodines (${comodines}) para: ${titular.substring(0, 50)}`);
           return null;
         }
-        // Agregar blancos amereidianos (espacios tipográficos)
-        return versos.map(agregarBlancos);
+        return versos.map(limpiarVerso);
       }
     }
 
