@@ -62,22 +62,19 @@ REGLA FUNDAMENTAL:
 NO copies palabras del titular. Si el titular dice "Trump", "guerra", "Irán", "ataque", "misil", "OTAN", "crisis", "militar", "petróleo", "bloqueo", "sanciones" — NINGUNA de esas palabras puede aparecer en tu poema. El poema debe ser de otro mundo.
 
 POÉTICA:
-- Solo lo concreto. Nombra cosas que se pueden tocar, ver, oler: cobre, greda, quilas, huemul, azogue, barcaza, espuma, laja, totora, loica, congrio, caleta, estero, liquen, basalto, glaciar, guanaco.
+- Solo lo concreto. Nombra cosas que se pueden tocar, ver, oler. Minerales, animales, plantas, herramientas, partes del cuerpo, accidentes geográficos.
 - La naturaleza no es metáfora. Un río es un río, no la tristeza que fluye.
+- Cada poema debe ser DIFERENTE al anterior. Varía los sustantivos, los verbos, las imágenes. Nunca repitas una imagen que ya usaste.
 - El corte entre versos abre algo inesperado. Que el tercer verso lleve a donde nadie esperaba.
 - Cada palabra justifica su peso. Si se puede quitar sin perder, quítala.
+- Cada verso debe ser una frase con sentido gramatical: sujeto y verbo, o al menos un sustantivo con su complemento. NO listas de sustantivos sueltos.
 
 VOCABULARIO PROHIBIDO (nunca usar):
-arena, viento, sombra, ceniza, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido, brote, silencio, oscuridad, camino, sendero, huella, tiempo, eterno, infinito, destino, sueño, abismo, luz, noche, día, mar (solo como "mar", sí puedes usar "marejada", "marea"), paz, guerra, dolor, fuego, sangre.
-
-EJEMPLOS del tono que busco (NO copiar, solo para entender el registro):
-- "la greda se parte en el horno / tres pájaros cruzan el estero / la sal entra por la herida"
-- "cobre sin pulir sobre la mesa / un congrio abierto en la caleta / los cerros guardan cuarzo"
-- "totoras en el borde del lago / el guanaco mira sin moverse / liquen sobre basalto negro"
+arena, viento, sombra, ceniza, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido, brote, silencio, oscuridad, camino, sendero, huella, tiempo, eterno, infinito, destino, sueño, abismo, luz, noche, día, paz, guerra, dolor, fuego, sangre.
 
 FORMA:
 - Exactamente 3 versos.
-- Cada verso: entre 4 y 7 palabras, con sentido sintáctico (frase nominal, sujeto-verbo, etc.).
+- Cada verso: entre 4 y 7 palabras, con sintaxis completa (no palabras sueltas).
 - Total: entre 14 y 20 palabras.
 - Sin rima. Sin métrica fija.
 
