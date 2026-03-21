@@ -129,32 +129,47 @@ function limpiarVerso(verso) {
     .toLowerCase();
 }
 
-const PROHIBIDAS = new Set([
-  "arena", "viento", "sombra", "ceniza", "esperanza", "horizonte",
-  "aurora", "amanecer", "ocaso", "alba", "crepúsculo", "destello",
-  "suspiro", "murmullo", "eco", "alma", "latido", "brote",
-  "silencio", "oscuridad", "camino", "sendero", "huella",
-  "eterno", "infinito", "sueño", "paz", "guerra", "dolor", "sangre"
-]);
+// Raíces prohibidas — matchean cualquier derivación
+const RAICES_PROHIBIDAS = [
+  "aren", "vient", "sombr", "ceniz", "esperanz", "horizont",
+  "auror", "amanec", "ocas", "crepúscul", "destell",
+  "suspir", "murmull", "murmur", "alm", "latid", "brot",
+  "silenci", "oscurid", "camin", "sender", "huell",
+  "etern", "infinit", "sueñ", "soñ", "guerr", "dolor", "sangr",
+  "noche", "noct", "luz", "lumin", "luc"
+];
 
-const PALABRAS_NOTICIA = new Set([
+const RAICES_NOTICIA = [
   "trump", "irán", "iran", "eeuu", "otan", "israel", "gaza", "hamas",
-  "hamás", "misil", "misiles", "bombardeo", "militar", "militares",
-  "sanciones", "petróleo", "crisis", "ataque", "ataques", "bloqueo",
-  "coalición", "diplomacia", "negociación", "ofensiva", "represalia",
-  "ejército", "tropas", "armas", "nuclear", "tanquero", "buque"
-]);
+  "hamás", "misil", "bombard", "milit", "sancion", "petról",
+  "crisis", "ataqu", "bloqu", "coalic", "diplom", "negoci",
+  "ofensiv", "represal", "ejércit", "tropa", "arma", "nuclear",
+  "tanquer", "buqu"
+];
+
+function contieneRaiz(palabra, raices) {
+  const p = palabra.toLowerCase();
+  return raices.some(r => p.startsWith(r) || p.includes(r));
+}
 
 function filtroCalidad(versos, titular) {
   const todosLimpio = versos.map(v => v.toLowerCase().trim());
 
+  // 1. Raíces prohibidas
   for (const verso of todosLimpio) {
     for (const palabra of verso.split(/\s+/)) {
-      if (PROHIBIDAS.has(palabra)) return false;
-      if (PALABRAS_NOTICIA.has(palabra)) return false;
+      if (palabra.length >= 3 && contieneRaiz(palabra, RAICES_PROHIBIDAS)) return false;
     }
   }
 
+  // 2. Palabras de noticias
+  for (const verso of todosLimpio) {
+    for (const palabra of verso.split(/\s+/)) {
+      if (palabra.length >= 4 && contieneRaiz(palabra, RAICES_NOTICIA)) return false;
+    }
+  }
+
+  // 3. Palabras copiadas del titular
   const palabrasTitular = titular.toLowerCase().split(/\s+/)
     .filter(p => p.length >= 5)
     .map(p => p.replace(/[^a-záéíóúñü]/g, ""));
@@ -167,6 +182,7 @@ function filtroCalidad(versos, titular) {
   }
   if (copiadas > 1) return false;
 
+  // 4. Repetición interna
   const palabrasUsadas = {};
   for (const verso of todosLimpio) {
     for (const palabra of verso.split(/\s+/)) {
@@ -179,6 +195,7 @@ function filtroCalidad(versos, titular) {
     if (count >= 3) return false;
   }
 
+  // 5. Cada verso tiene al menos 2 palabras sustantivas
   for (const verso of todosLimpio) {
     const palabrasLargas = verso.split(/\s+/).filter(p => p.length >= 4);
     if (palabrasLargas.length < 2) return false;
