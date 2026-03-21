@@ -130,14 +130,14 @@ function validarVerso(versos) {
   if (versos.length !== 3) return false;
   for (const verso of versos) {
     const limpio = verso.trim();
-    if (limpio.length < 5) return false;
+    if (limpio.length < 4) return false;
     if (/[0-9@#$%^&*=+{}[\]|\\<>]/.test(limpio)) return false;
     if (/^(aquí|este|nota|verso|haiku|línea|sílaba|poema)/i.test(limpio)) return false;
     const palabras = limpio.split(/\s+/).length;
-    if (palabras < 3 || palabras > 7) return false;
+    if (palabras < 2 || palabras > 8) return false;
   }
   const totalPalabras = versos.reduce((s, v) => s + v.trim().split(/\s+/).length, 0);
-  if (totalPalabras < 10 || totalPalabras > 20) return false;
+  if (totalPalabras < 8 || totalPalabras > 22) return false;
   return true;
 }
 
@@ -189,7 +189,7 @@ async function generarVerso(titular, apiKey) {
       const versos = lineas.slice(0, 3);
       if (validarVerso(versos)) {
         const comodines = contarComodines(titular, versos);
-        if (comodines > 3) {
+        if (comodines > 12) {
           console.log(`Comodines: ${comodines} — descartado`);
           return null;
         }

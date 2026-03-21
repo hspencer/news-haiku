@@ -74,9 +74,8 @@ FORMA:
 - Verso libre, sin rima, sin métrica fija.
 
 RESTRICCIÓN DE LETRAS:
-- Las letras de tu poema deben provenir del titular recibido. Reutiliza las letras disponibles.
-- Puedes agregar como máximo 3 letras que no estén en el titular.
-- NO es un anagrama. Puedes elegir y reordenar, pero con economía.
+- Intenta reutilizar letras del titular recibido, pero la calidad poética manda.
+- Si necesitas letras que no están en el titular, úsalas. Prefiere la economía.
 
 FORMATO DE RESPUESTA:
 - SOLO 3 versos, uno por línea.
@@ -174,21 +173,20 @@ function seleccionarMejores(titulares, n) {
 }
 
 /**
- * validarVerso — validación estructural: 3 versos, 3-7 palabras c/u
+ * validarVerso — validación estructural: 3 versos, 2-8 palabras c/u
  */
 function validarVerso(versos) {
   if (versos.length !== 3) return false;
   for (const verso of versos) {
     const limpio = verso.trim();
-    if (limpio.length < 5) return false;
+    if (limpio.length < 4) return false;
     if (/[0-9@#$%^&*=+{}[\]|\\<>]/.test(limpio)) return false;
     if (/^(aquí|este|nota|verso|haiku|línea|sílaba|poema)/i.test(limpio)) return false;
     const palabras = limpio.split(/\s+/).length;
-    if (palabras < 3 || palabras > 7) return false;
+    if (palabras < 2 || palabras > 8) return false;
   }
-  // Total de palabras entre 12 y 18
   const totalPalabras = versos.reduce((s, v) => s + v.trim().split(/\s+/).length, 0);
-  if (totalPalabras < 10 || totalPalabras > 20) return false;
+  if (totalPalabras < 8 || totalPalabras > 22) return false;
   return true;
 }
 
@@ -262,7 +260,7 @@ async function generarHaiku(titular, apiKey) {
       const versos = lineas.slice(0, 3);
       if (validarVerso(versos)) {
         const comodines = contarComodines(titular, versos);
-        if (comodines > 3) {
+        if (comodines > 12) {
           console.log(`Demasiados comodines (${comodines}) para: ${titular.substring(0, 50)}`);
           return null;
         }
