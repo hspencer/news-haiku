@@ -50,7 +50,7 @@ const PALABRAS_FILTRO = [
 // ── Groq ──
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const LLM_MODEL = "qwen/qwen-3-32b";
+const LLM_MODEL = "llama-3.3-70b-versatile";
 
 const SYSTEM_PROMPT = `Eres un poeta amereidiano. Amereida es el poema épico de América: no conquista sino regalo, no proeza sino hallazgo, no descubrimiento sino travesía y abertura.
 
@@ -62,13 +62,14 @@ REGLA FUNDAMENTAL:
 NO copies palabras del titular. Si el titular dice "Trump", "guerra", "Irán", "ataque", "misil", "OTAN", "crisis", "militar", "petróleo", "bloqueo", "sanciones" — NINGUNA puede aparecer en tu poema.
 
 POÉTICA AMEREIDIANA:
-- Nombra lo concreto: minerales, animales, plantas, herramientas, partes del cuerpo, accidentes geográficos. Cosas que se pueden tocar, ver, oler.
-- Usa verbos amereidianos: irrumpir, rasgar, desvelar, atravesar, consentir, palpar, hallar, regalar, heredar, fundar, habitar, nombrar, principiar, abrirse.
-- Entreteje lo concreto con lo amereidiano: el hallazgo, el don, la travesía, el borde, la herencia, la gratuidad, el rigor, la fiesta, la levedad, la abertura, el equívoco, la primicia.
+- VERBOS preferidos: irrumpir, rasgar, desvelar, atravesar, palpar, hallar, regalar, heredar, fundar, habitar, nombrar, principiar, consentir, abrirse.
+- SUSTANTIVOS del territorio: borde, orilla, suelo, cueva, cabo, mapa, piedra, cobre, greda, madera, cuero, lana, hueso, río, pampa, selva, glaciar, estero, caleta, cerro, isla, laja, totora, quilas, basalto.
+- SUSTANTIVOS amereidianos: hallazgo, don, travesía, herencia, gratuidad, rigor, fiesta, levedad, abertura, equívoco, primicia, regalo, trance, irrupción.
+- ANIMALES: huemul, cóndor, loica, flamenco, guanaco, congrio, albatros, toro, ballena, zorro, puma, coipo, cisne, garza.
 - La naturaleza no es metáfora de nada. Un río es un río.
 - El corte entre versos abre algo inesperado. Que el tercer verso lleve a donde nadie esperaba.
 - Cada palabra justifica su peso. Preferir la carencia.
-- Cada verso es una frase con sentido gramatical completo. NO palabras sueltas. NO frases truncadas. Cada verso se sostiene solo.
+- Cada verso es una frase con sentido gramatical completo. NO palabras sueltas. NO frases truncadas.
 
 VOCABULARIO PROHIBIDO (nunca usar):
 arena, viento, sombra, ceniza, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido, brote, silencio, oscuridad, camino, sendero, huella, eterno, infinito, sueño, paz, guerra, dolor, sangre.
@@ -326,7 +327,7 @@ async function generarHaiku(titular, apiKey) {
         ],
         model: LLM_MODEL,
         stream: false,
-        temperature: 1.2  // Temperatura alta para riesgo poético
+        temperature: 1.3  // Temperatura alta para riesgo poético
       })
     });
 
