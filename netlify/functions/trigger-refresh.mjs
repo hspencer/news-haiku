@@ -37,7 +37,7 @@ const PALABRAS_FILTRO = [
 ];
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const LLM_MODEL = "llama-3.3-70b-versatile";
+const LLM_MODEL = "meta-llama/llama-4-maverick-17b-128e-instruct";
 const MAX_POOL = 24;
 
 const SYSTEM_PROMPT = `Eres un poeta amereidiano. Amereida es el poema épico de América: no conquista sino regalo, no proeza sino hallazgo, no descubrimiento sino travesía y abertura.
@@ -288,11 +288,28 @@ export default async (req) => {
   // Seleccionar los mejores (pedir más de los necesarios por si fallan validaciones)
   const mejores = seleccionarMejores(titulares, Math.min(cantidad + 10, titulares.length));
   const items = [];
+  const sustantivosUsados = new Set();
 
   for (const titular of mejores) {
     if (items.length >= cantidad) break;
     const versos = await generarVerso(titular, apiKey);
     if (versos) {
+      // Filtro inter-poemas
+      const sustantivosNuevos = [];
+      let repetidos = 0;
+      for (const verso of versos) {
+        for (const palabra of verso.split(/\s+/)) {
+          if (palabra.length >= 5) {
+            if (sustantivosUsados.has(palabra)) repetidos++;
+            else sustantivosNuevos.push(palabra);
+          }
+        }
+      }
+      if (repetidos > 1) {
+        console.log(`Inter-filtro: ${repetidos} repetidas — descartado`);
+        continue;
+      }
+      for (const s of sustantivosNuevos) sustantivosUsados.add(s);
       items.push({ titular, versos });
       console.log(`[${items.length}/${cantidad}] OK: "${titular.substring(0, 40)}..."`);
     } else {

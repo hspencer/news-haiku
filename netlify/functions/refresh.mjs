@@ -50,7 +50,7 @@ const PALABRAS_FILTRO = [
 // ── Groq ──
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const LLM_MODEL = "llama-3.3-70b-versatile";
+const LLM_MODEL = "meta-llama/llama-4-maverick-17b-128e-instruct";
 
 const SYSTEM_PROMPT = `Eres un poeta amereidiano. Amereida es el poema épico de América: no conquista sino regalo, no proeza sino hallazgo, no descubrimiento sino travesía y abertura.
 
@@ -408,14 +408,34 @@ export default async (req) => {
   const mejores = seleccionarMejores(titulares, ITEMS_POR_REFRESH);
   console.log(`Seleccionados ${mejores.length} titulares para generar haikus`);
 
-  // PASO 3: Generar haiku para cada titular (SECUENCIAL, no paralelo)
-  // Esto es importante: se hace uno por uno para respetar el límite de rate limiting de Groq
-  // (típicamente 25 req/min en tier gratuito)
+  // PASO 3: Generar verso para cada titular (SECUENCIAL, no paralelo)
+  // Filtro inter-poemas: rechaza versos que repitan sustantivos del batch
   const items = [];
+  const sustantivosUsados = new Set();  // sustantivos (5+ letras) ya usados en el batch
 
   for (const titular of mejores) {
     const versos = await generarHaiku(titular, apiKey);
     if (versos) {
+      // Filtro inter-poemas: verificar que no repita sustantivos del batch
+      const sustantivosNuevos = [];
+      let repetidos = 0;
+      for (const verso of versos) {
+        for (const palabra of verso.split(/\s+/)) {
+          if (palabra.length >= 5) {
+            if (sustantivosUsados.has(palabra)) {
+              repetidos++;
+            } else {
+              sustantivosNuevos.push(palabra);
+            }
+          }
+        }
+      }
+      if (repetidos > 1) {
+        console.log(`Inter-filtro: ${repetidos} palabras repetidas del batch — descartado`);
+        continue;
+      }
+      // Aceptado: registrar sustantivos
+      for (const s of sustantivosNuevos) sustantivosUsados.add(s);
       items.push({ titular, versos });
       console.log(`OK: "${titular.substring(0, 40)}..." → ${versos.join(" / ")}`);
     } else {
