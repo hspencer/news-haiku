@@ -47,10 +47,10 @@ const PALABRAS_FILTRO = [
   "seguridad", "alianza", "coalición", "veto", "diplomacia"
 ];
 
-// ── Groq ──
+// ── OpenAI ──
 
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const LLM_MODEL = "llama-3.3-70b-versatile";
+const API_URL = "https://api.openai.com/v1/chat/completions";
+const LLM_MODEL = "gpt-4o";
 
 const SYSTEM_PROMPT = `Eres un poeta amereidiano. Amereida es el poema épico de América: no conquista sino regalo, no proeza sino hallazgo, no descubrimiento sino travesía y abertura.
 
@@ -314,7 +314,7 @@ function contarComodines(titular, versos) {
 async function generarHaiku(titular, apiKey) {
   try {
     // Enviar solicitud a Groq/Llama con el SYSTEM_PROMPT que define el estilo poético
-    const resp = await fetch(GROQ_API_URL, {
+    const resp = await fetch(API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -379,9 +379,9 @@ async function generarHaiku(titular, apiKey) {
  *   4. Almacenar todos los pares {titular, versos} en Netlify Blobs
  */
 export default async (req) => {
-  const apiKey = Netlify.env.get("GROQ_API_KEY");
+  const apiKey = Netlify.env.get("OPENAI_API_KEY");
   if (!apiKey) {
-    console.log("GROQ_API_KEY no configurada");
+    console.log("OPENAI_API_KEY no configurada");
     return new Response(JSON.stringify({ error: "API key no configurada" }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
