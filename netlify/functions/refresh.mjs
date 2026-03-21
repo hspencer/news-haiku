@@ -50,7 +50,7 @@ const PALABRAS_FILTRO = [
 // ── Groq ──
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const LLM_MODEL = "meta-llama/llama-4-maverick-17b-128e-instruct";
+const LLM_MODEL = "qwen/qwen-3-32b";
 
 const SYSTEM_PROMPT = `Eres un poeta amereidiano. Amereida es el poema épico de América: no conquista sino regalo, no proeza sino hallazgo, no descubrimiento sino travesía y abertura.
 
@@ -336,8 +336,9 @@ async function generarHaiku(titular, apiKey) {
     }
 
     const data = await resp.json();
-    const texto = data.choices[0].message.content.trim();
-    // Limpiar asteriscos (markdown bold) que Groq a veces agrega
+    let texto = data.choices[0].message.content.trim();
+    // Limpiar thinking tags (Qwen/reasoning models) y markdown
+    texto = texto.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
     const textoLimpio = texto.replace(/\*\*/g, "").replace(/\*/g, "");
     const lineas = textoLimpio.split("\n").map(l => l.trim()).filter(l => l.length > 0);
 
