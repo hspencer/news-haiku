@@ -52,7 +52,7 @@ NO copies palabras del titular. Si el titular dice "Trump", "guerra", "Irán", "
 POÉTICA AMEREIDIANA:
 - VERBOS preferidos: irrumpir, rasgar, desvelar, atravesar, palpar, hallar, regalar, heredar, fundar, habitar, nombrar, principiar, consentir, abrirse.
 - SUSTANTIVOS del territorio: borde, orilla, suelo, cueva, cabo, mapa, piedra, cobre, greda, madera, cuero, lana, hueso, río, pampa, selva, glaciar, estero, caleta, cerro, isla, laja, totora, quilas, basalto.
-- SUSTANTIVOS amereidianos: hallazgo, don, travesía, herencia, gratuidad, rigor, fiesta, levedad, abertura, equívoco, primicia, regalo, trance, irrupción.
+- SUSTANTIVOS amereidianos: hallazgo, don, travesía, herencia, gratuidad, rigor, fiesta, levedad, abertura, equívoco, origen, regalo, trance, irrupción.
 - ANIMALES: huemul, cóndor, loica, flamenco, guanaco, congrio, albatros, toro, ballena, zorro, puma, coipo, cisne, garza.
 - La naturaleza no es metáfora de nada. Un río es un río.
 - El corte entre versos abre algo inesperado. Que el tercer verso lleve a donde nadie esperaba.
@@ -60,7 +60,7 @@ POÉTICA AMEREIDIANA:
 - Cada verso es una frase con sentido gramatical completo. NO palabras sueltas. NO frases truncadas.
 
 VOCABULARIO PROHIBIDO (nunca usar):
-arena, viento, sombra, ceniza, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido, brote, silencio, oscuridad, camino, sendero, huella, eterno, infinito, sueño, paz, guerra, dolor, sangre.
+romance, viento, sombra, ceniza, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido, brote, silencio, oscuridad, sendero, huella, eterno, infinito, sueño, paz, guerra, dolor, sangre.
 
 FORMA:
 - Exactamente 3 versos.
