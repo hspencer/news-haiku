@@ -40,29 +40,31 @@ const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const LLM_MODEL = "llama-3.3-70b-versatile";
 const MAX_POOL = 24;
 
-const SYSTEM_PROMPT = `Eres un poeta amereidiano. Amereida es el poema épico de América que no se funda en la conquista sino en el regalo, la travesía y la abertura al continente desconocido.
+const SYSTEM_PROMPT = `Eres un poeta amereidiano. Amereida es el poema épico de América: no conquista sino regalo, no proeza sino hallazgo, no descubrimiento sino travesía y abertura.
 
 TU TAREA:
-Recibes un titular de noticias. NO escribas sobre la noticia. El titular es solo una reserva de letras.
-Tu poema es completamente independiente: trata sobre el territorio americano, el mar, los materiales, los animales, la travesía, el oficio, el cuerpo. Nunca sobre política, guerra ni actualidad.
+Recibes un titular de noticias. NO escribas sobre la noticia. El titular es solo materia prima de letras.
+Tu poema es independiente. Trata sobre el territorio americano, sus materiales, sus animales, el oficio de habitar, el cuerpo, la travesía. Nunca sobre política, guerra ni actualidad.
 
 REGLA FUNDAMENTAL:
-NO copies palabras del titular. Si el titular dice "Trump", "guerra", "Irán", "ataque", "misil", "OTAN", "crisis", "militar", "petróleo", "bloqueo", "sanciones" — NINGUNA de esas palabras puede aparecer en tu poema. El poema debe ser de otro mundo.
+NO copies palabras del titular. Si el titular dice "Trump", "guerra", "Irán", "ataque", "misil", "OTAN", "crisis", "militar", "petróleo", "bloqueo", "sanciones" — NINGUNA puede aparecer en tu poema.
 
-POÉTICA:
-- Solo lo concreto. Nombra cosas que se pueden tocar, ver, oler. Minerales, animales, plantas, herramientas, partes del cuerpo, accidentes geográficos.
-- La naturaleza no es metáfora. Un río es un río, no la tristeza que fluye.
-- Cada poema debe ser DIFERENTE al anterior. Varía los sustantivos, los verbos, las imágenes. Nunca repitas una imagen que ya usaste.
+POÉTICA AMEREIDIANA:
+- Nombra lo concreto: minerales, animales, plantas, herramientas, partes del cuerpo, accidentes geográficos. Cosas que se pueden tocar, ver, oler.
+- Usa verbos amereidianos: irrumpir, rasgar, desvelar, atravesar, consentir, palpar, hallar, regalar, heredar, fundar, habitar, nombrar, principiar, abrirse.
+- Entreteje lo concreto con lo amereidiano: el hallazgo, el don, la travesía, el borde, la herencia, la gratuidad, el rigor, la fiesta, la levedad, la abertura, el equívoco, la primicia.
+- La naturaleza no es metáfora de nada. Un río es un río.
 - El corte entre versos abre algo inesperado. Que el tercer verso lleve a donde nadie esperaba.
-- Cada palabra justifica su peso. Si se puede quitar sin perder, quítala.
-- Cada verso debe ser una frase con sentido gramatical: sujeto y verbo, o al menos un sustantivo con su complemento. NO listas de sustantivos sueltos.
+- Cada palabra justifica su peso. Preferir la carencia.
+- Cada verso es una frase con sentido gramatical completo. NO palabras sueltas. NO frases truncadas. Cada verso se sostiene solo.
 
 VOCABULARIO PROHIBIDO (nunca usar):
-arena, viento, sombra, ceniza, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido, brote, silencio, oscuridad, camino, sendero, huella, tiempo, eterno, infinito, destino, sueño, abismo, luz, noche, día, paz, guerra, dolor, fuego, sangre.
+arena, viento, sombra, ceniza, esperanza, horizonte, aurora, amanecer, ocaso, alba, crepúsculo, destello, suspiro, murmullo, eco, alma, latido, brote, silencio, oscuridad, camino, sendero, huella, eterno, infinito, sueño, paz, guerra, dolor, sangre.
 
 FORMA:
 - Exactamente 3 versos.
-- Cada verso: entre 4 y 7 palabras, con sintaxis completa (no palabras sueltas).
+- Cada verso: entre 4 y 7 palabras.
+- Cada verso es una frase gramatical completa que se sostiene sola (no queda truncada).
 - Total: entre 14 y 20 palabras.
 - Sin rima. Sin métrica fija.
 
@@ -126,6 +128,64 @@ function limpiarVerso(verso) {
     .toLowerCase();
 }
 
+const PROHIBIDAS = new Set([
+  "arena", "viento", "sombra", "ceniza", "esperanza", "horizonte",
+  "aurora", "amanecer", "ocaso", "alba", "crepúsculo", "destello",
+  "suspiro", "murmullo", "eco", "alma", "latido", "brote",
+  "silencio", "oscuridad", "camino", "sendero", "huella",
+  "eterno", "infinito", "sueño", "paz", "guerra", "dolor", "sangre"
+]);
+
+const PALABRAS_NOTICIA = new Set([
+  "trump", "irán", "iran", "eeuu", "otan", "israel", "gaza", "hamas",
+  "hamás", "misil", "misiles", "bombardeo", "militar", "militares",
+  "sanciones", "petróleo", "crisis", "ataque", "ataques", "bloqueo",
+  "coalición", "diplomacia", "negociación", "ofensiva", "represalia",
+  "ejército", "tropas", "armas", "nuclear", "tanquero", "buque"
+]);
+
+function filtroCalidad(versos, titular) {
+  const todosLimpio = versos.map(v => v.toLowerCase().trim());
+
+  for (const verso of todosLimpio) {
+    for (const palabra of verso.split(/\s+/)) {
+      if (PROHIBIDAS.has(palabra)) return false;
+      if (PALABRAS_NOTICIA.has(palabra)) return false;
+    }
+  }
+
+  const palabrasTitular = titular.toLowerCase().split(/\s+/)
+    .filter(p => p.length >= 5)
+    .map(p => p.replace(/[^a-záéíóúñü]/g, ""));
+  const palabrasTitularSet = new Set(palabrasTitular);
+  let copiadas = 0;
+  for (const verso of todosLimpio) {
+    for (const palabra of verso.split(/\s+/)) {
+      if (palabra.length >= 5 && palabrasTitularSet.has(palabra)) copiadas++;
+    }
+  }
+  if (copiadas > 1) return false;
+
+  const palabrasUsadas = {};
+  for (const verso of todosLimpio) {
+    for (const palabra of verso.split(/\s+/)) {
+      if (palabra.length >= 4) {
+        palabrasUsadas[palabra] = (palabrasUsadas[palabra] || 0) + 1;
+      }
+    }
+  }
+  for (const [, count] of Object.entries(palabrasUsadas)) {
+    if (count >= 3) return false;
+  }
+
+  for (const verso of todosLimpio) {
+    const palabrasLargas = verso.split(/\s+/).filter(p => p.length >= 4);
+    if (palabrasLargas.length < 2) return false;
+  }
+
+  return true;
+}
+
 function validarVerso(versos) {
   if (versos.length !== 3) return false;
   for (const verso of versos) {
@@ -177,7 +237,7 @@ async function generarVerso(titular, apiKey) {
         ],
         model: LLM_MODEL,
         stream: false,
-        temperature: 0.9
+        temperature: 1.2
       })
     });
     if (!resp.ok) return null;
@@ -188,12 +248,11 @@ async function generarVerso(titular, apiKey) {
     if (lineas.length >= 3) {
       const versos = lineas.slice(0, 3);
       if (validarVerso(versos)) {
-        const comodines = contarComodines(titular, versos);
-        if (comodines > 12) {
-          console.log(`Comodines: ${comodines} — descartado`);
+        const versosLimpios = versos.map(limpiarVerso);
+        if (!filtroCalidad(versosLimpios, titular)) {
           return null;
         }
-        return versos.map(limpiarVerso);
+        return versosLimpios;
       }
     }
     return null;
